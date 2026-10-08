@@ -58,11 +58,11 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         zoom: 6,
       });
 
-      // Default OpenStreetMap (CartoDB Voyager) layer - Reliable & unblocked
-      const osmLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // Default OpenStreetMap layer - 100% free, no API key required
+      const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: ['a', 'b', 'c', 'd'],
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: ['a', 'b', 'c'],
+        attribution: '&copy; OpenStreetMap contributors',
       });
 
       osmLayer.addTo(map);
@@ -107,44 +107,141 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         attribution: '&copy; Google Maps Satellite',
       }).addTo(map);
     } else if (mapType === 'osm') {
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: ['a', 'b', 'c', 'd'],
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        subdomains: ['a', 'b', 'c'],
+        attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map);
     } else {
-      // Local Canvas Grid Layer (0 network requests, completely offline)
+      // Modern High-Precision CAD Offline Grid Layer (0 network requests, completely offline)
       const OfflineCanvasGrid = L.GridLayer.extend({
         createTile: function (coords: { x: number; y: number; z: number }) {
           const tile = document.createElement('canvas');
-          tile.width = 256;
-          tile.height = 256;
-          const ctx = tile.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, 256, 256);
-            ctx.strokeStyle = '#e2e8f0';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            for (let x = 0; x <= 256; x += 64) {
-              ctx.moveTo(x, 0);
-              ctx.lineTo(x, 256);
-            }
-            for (let y = 0; y <= 256; y += 64) {
-              ctx.moveTo(0, y);
-              ctx.lineTo(256, y);
-            }
-            ctx.stroke();
+          const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+          const size = 256;
+          tile.width = size * dpr;
+          tile.height = size * dpr;
+          tile.style.width = `${size}px`;
+          tile.style.height = `${size}px`;
 
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '10px monospace';
-            ctx.fillText(`Izgara (${coords.z}/${coords.x}/${coords.y})`, 8, 16);
+          const ctx = tile.getContext('2d');
+          if (!ctx) return tile;
+
+          ctx.scale(dpr, dpr);
+
+          // 1. Base CAD Architectural Canvas Background
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(0, 0, size, size);
+
+          // 2. Minor sub-grid lines (every 32px)
+          ctx.strokeStyle = '#f1f5f9';
+          ctx.lineWidth = 0.75;
+          ctx.beginPath();
+          for (let pos = 32; pos < size; pos += 32) {
+            if (pos % 64 !== 0) {
+              ctx.moveTo(pos, 0);
+              ctx.lineTo(pos, size);
+              ctx.moveTo(0, pos);
+              ctx.lineTo(size, pos);
+            }
           }
+          ctx.stroke();
+
+          // 3. Medium grid lines (every 64px)
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let pos = 64; pos < size; pos += 64) {
+            if (pos % 128 !== 0) {
+              ctx.moveTo(pos, 0);
+              ctx.lineTo(pos, size);
+              ctx.moveTo(0, pos);
+              ctx.lineTo(size, pos);
+            }
+          }
+          ctx.stroke();
+
+          // 4. Major grid axes / tile borders (every 128px)
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1.25;
+          ctx.beginPath();
+          for (let pos = 0; pos <= size; pos += 128) {
+            ctx.moveTo(pos, 0);
+            ctx.lineTo(pos, size);
+            ctx.moveTo(0, pos);
+            ctx.lineTo(size, pos);
+          }
+          ctx.stroke();
+
+          // 5. Geodetic surveyor reticle crosshairs (+) at 64px intersections
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = 1.2;
+          const tickLen = 4.5;
+          for (let x = 64; x < size; x += 64) {
+            for (let y = 64; y < size; y += 64) {
+              ctx.beginPath();
+              ctx.moveTo(x - tickLen, y);
+              ctx.lineTo(x + tickLen, y);
+              ctx.moveTo(x, y - tickLen);
+              ctx.lineTo(x, y + tickLen);
+              ctx.stroke();
+            }
+          }
+
+          // 6. Central Benchmark Reticle Target at Tile Center (128, 128)
+          const cx = 128;
+          const cy = 128;
+          ctx.save();
+          ctx.strokeStyle = 'rgba(2, 132, 199, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          // Center target point
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath();
+          ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 7. Sleek CAD Technical Coordinate Pill Badge (Top-Left)
+          const badgeX = 8;
+          const badgeY = 8;
+          const badgeW = 126;
+          const badgeH = 19;
+          const radius = 4;
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.beginPath();
+          if (typeof (ctx as any).roundRect === 'function') {
+            (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, radius);
+          } else {
+            ctx.rect(badgeX, badgeY, badgeW, badgeH);
+          }
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(203, 213, 225, 0.85)';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+
+          // Accent dot
+          ctx.fillStyle = '#0284c7';
+          ctx.beginPath();
+          ctx.arc(badgeX + 7.5, badgeY + 9.5, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Monospace coordinates
+          ctx.fillStyle = '#475569';
+          ctx.font = '600 9px monospace';
+          ctx.fillText(`KARE [${coords.x},${coords.y}] Z:${coords.z}`, badgeX + 15, badgeY + 13);
+
           return tile;
         },
       });
+
       new (OfflineCanvasGrid as any)({
-        attribution: 'Yerel Vektör Izgarası (Çevrimdışı)',
+        attribution: 'Modern CAD Mühendislik Izgarası (Çevrimdışı)',
       }).addTo(map);
     }
   }, [mapType]);
@@ -413,6 +510,24 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         {/* Map Container */}
         <div className="lg:col-span-3 h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0">
           <div ref={mapContainerRef} className="w-full h-full" />
+
+          {/* Modern CAD Offline Grid HUD Badge */}
+          {mapType === 'grid' && (
+            <div className="absolute top-3 right-3 z-400 bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-slate-700 shadow-lg text-[11px] flex items-center gap-2 pointer-events-none animate-in fade-in">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="font-semibold text-slate-100">CAD Mühendislik Izgarası</span>
+              <span className="text-[10px] text-slate-400 border-l border-slate-700 pl-2">Sıfır Ağ · %100 Yerel Vektör</span>
+            </div>
+          )}
+
+          {/* Geodetic North Arrow / Compass Rose Widget */}
+          <div
+            className="absolute bottom-5 left-3 z-400 bg-white/95 backdrop-blur-xs text-slate-700 px-2 py-1 rounded-md border border-slate-300 shadow-md flex items-center gap-1 pointer-events-none select-none text-[10px] font-bold"
+            title="Kuzey Yönü"
+          >
+            <span className="text-rose-600 font-black text-xs leading-none">▲</span>
+            <span className="text-slate-800">K</span>
+          </div>
         </div>
 
         {/* Selected Sequence Panel */}
