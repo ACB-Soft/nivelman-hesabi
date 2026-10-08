@@ -58,10 +58,11 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         zoom: 6,
       });
 
-      // Default OpenStreetMap layer
-      const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // Default OpenStreetMap (CartoDB Voyager) layer - Reliable & unblocked
+      const osmLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
+        subdomains: ['a', 'b', 'c', 'd'],
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       });
 
       osmLayer.addTo(map);
@@ -106,9 +107,10 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         attribution: '&copy; Google Maps Satellite',
       }).addTo(map);
     } else if (mapType === 'osm') {
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap',
+        subdomains: ['a', 'b', 'c', 'd'],
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       }).addTo(map);
     } else {
       // Local Canvas Grid Layer (0 network requests, completely offline)

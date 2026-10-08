@@ -1,79 +1,14 @@
 import React, { useState } from 'react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
-import { Download, Smartphone, X, CheckCircle2, Share2, RefreshCw } from 'lucide-react';
+import { Download, Smartphone, X, CheckCircle2, Share2 } from 'lucide-react';
 
 export const PWAInstallButton: React.FC = () => {
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
-  const [updateState, setUpdateState] = useState<'idle' | 'checking' | 'up-to-date' | 'updated'>('idle');
 
-  const handleCheckForUpdates = async () => {
-    if (updateState === 'checking') return;
-    setUpdateState('checking');
-
-    try {
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          await reg.update();
-          if (reg.waiting) {
-            setUpdateState('updated');
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-            setTimeout(() => {
-              window.location.reload();
-            }, 1000);
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Service worker update check error:', err);
-    }
-
-    // Finished check, inform user that app is on latest version
-    setTimeout(() => {
-      setUpdateState('up-to-date');
-      setTimeout(() => {
-        setUpdateState('idle');
-      }, 3000);
-    }, 900);
-  };
-
-  // If already running as an installed PWA or previously installed, show "Güncelleştirmeleri Denetle"
+  // If already running as an installed PWA or previously installed, do not show any button
   if (isInstalled) {
-    return (
-      <button
-        onClick={handleCheckForUpdates}
-        disabled={updateState === 'checking'}
-        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-80 ${
-          updateState === 'up-to-date'
-            ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
-            : updateState === 'updated'
-            ? 'bg-sky-950/40 border-sky-500/40 text-sky-300'
-            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-        }`}
-        title="Uygulama güncelleştirmelerini denetle"
-      >
-        <RefreshCw
-          className={`w-3.5 h-3.5 ${
-            updateState === 'checking'
-              ? 'animate-spin text-sky-400'
-              : updateState === 'up-to-date'
-              ? 'text-emerald-400'
-              : 'text-slate-300'
-          }`}
-        />
-        <span>
-          {updateState === 'checking'
-            ? 'Denetleniyor...'
-            : updateState === 'up-to-date'
-            ? 'Uygulama Güncel'
-            : updateState === 'updated'
-            ? 'Yeni Sürüm Yükleniyor...'
-            : 'Güncelleştirmeleri Denetle'}
-        </span>
-      </button>
-    );
+    return null;
   }
 
   // Chromium / Android / Desktop flow
@@ -85,7 +20,7 @@ export const PWAInstallButton: React.FC = () => {
         title="Uygulamayı Cihazınıza Yükleyin"
       >
         <Download className="w-3.5 h-3.5" />
-        <span>Uygulamayı Yükle (PWA)</span>
+        <span>Uygulamayı Yükle</span>
       </button>
     );
   }
@@ -156,13 +91,13 @@ export const PWAInstallButton: React.FC = () => {
   return (
     <button
       onClick={() => {
-        alert("PWA Kurulumu: Tarayıcınızın adres çubuğundaki 'Yükle' simgesine tıklayarak veya Chrome/Edge menüsünden 'GNSS Nivelman uygulamasını yükle' seçeneğini kullanarak uygulamayı masaüstünüze yükleyebilirsiniz.");
+        alert("PWA Kurulumu: Tarayıcınızın adres çubuğundaki 'Yükle' simgesine tıklayarak veya Chrome/Edge menüsünden 'Nivelman Hesabı uygulamasını yükle' seçeneğini kullanarak uygulamayı masaüstünüze yükleyebilirsiniz.");
       }}
       className="flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-200 shadow-sm transition-all"
       title="PWA Kurulumu Hakkında"
     >
       <Download className="w-3.5 h-3.5 text-emerald-400" />
-      <span>PWA</span>
+      <span>Uygulamayı Yükle</span>
     </button>
   );
 };
