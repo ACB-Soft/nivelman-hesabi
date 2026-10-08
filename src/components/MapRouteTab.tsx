@@ -37,7 +37,9 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
   const [selectedRoute, setSelectedRoute] = useState<GNSSPoint[]>([]);
   const [isSelectionActive, setIsSelectionActive] = useState(false);
-  const [mapType, setMapType] = useState<'hybrid' | 'osm'>('osm');
+  const [mapType, setMapType] = useState<'hybrid' | 'osm' | 'grid'>(
+    typeof navigator !== 'undefined' && !navigator.onLine ? 'grid' : 'osm'
+  );
 
   // Initialize selectedRoute with points order if not set
   useEffect(() => {
@@ -90,9 +92,9 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     if (!leafletMapRef.current) return;
     const map = leafletMapRef.current;
 
-    // Remove existing tile layers
+    // Remove existing tile/grid layers
     map.eachLayer((layer) => {
-      if (layer instanceof L.TileLayer) {
+      if (layer instanceof L.GridLayer) {
         map.removeLayer(layer);
       }
     });
@@ -103,10 +105,44 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
         attribution: '&copy; Google Maps Satellite',
       }).addTo(map);
-    } else {
+    } else if (mapType === 'osm') {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         attribution: '&copy; OpenStreetMap',
+      }).addTo(map);
+    } else {
+      // Local Canvas Grid Layer (0 network requests, completely offline)
+      const OfflineCanvasGrid = L.GridLayer.extend({
+        createTile: function (coords: { x: number; y: number; z: number }) {
+          const tile = document.createElement('canvas');
+          tile.width = 256;
+          tile.height = 256;
+          const ctx = tile.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, 0, 256, 256);
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = 0; x <= 256; x += 64) {
+              ctx.moveTo(x, 0);
+              ctx.lineTo(x, 256);
+            }
+            for (let y = 0; y <= 256; y += 64) {
+              ctx.moveTo(0, y);
+              ctx.lineTo(256, y);
+            }
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px monospace';
+            ctx.fillText(`Izgara (${coords.z}/${coords.x}/${coords.y})`, 8, 16);
+          }
+          return tile;
+        },
+      });
+      new (OfflineCanvasGrid as any)({
+        attribution: 'Yerel Vektör Izgarası (Çevrimdışı)',
       }).addTo(map);
     }
   }, [mapType]);
@@ -262,13 +298,38 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
       {/* Top Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
-            onClick={() => setMapType((prev) => (prev === 'osm' ? 'hybrid' : 'osm'))}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition flex items-center gap-1.5 cursor-pointer"
+            onClick={() => setMapType('osm')}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+              mapType === 'osm'
+                ? 'bg-white text-sky-700 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
           >
-            <Layers className="w-3.5 h-3.5 text-sky-600" />
-            <span>{mapType === 'osm' ? 'Uydu Görüntüsüne Geç' : 'Standart Haritaya Geç'}</span>
+            Sokak
+          </button>
+          <button
+            onClick={() => setMapType('hybrid')}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+              mapType === 'hybrid'
+                ? 'bg-white text-sky-700 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Uydu
+          </button>
+          <button
+            onClick={() => setMapType('grid')}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+              mapType === 'grid'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+            title="Sıfır internet/ağ bağımlılığı - Yerel vektörel ızgara altlığı"
+          >
+            <span>Çevrimdışı Izgara</span>
+            <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${mapType === 'grid' ? 'bg-emerald-700/80 text-emerald-100' : 'bg-slate-200 text-slate-600'}`}>0 Ağ</span>
           </button>
         </div>
 

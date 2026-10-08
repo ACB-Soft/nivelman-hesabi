@@ -59,7 +59,7 @@ export const ReportTab: React.FC<ReportTabProps> = ({ results }) => {
                 <strong>Rapor Tarihi:</strong> {today}
               </span>
               <span>
-                <strong>Yazılım:</strong> ACB Maps - Nivelman Hesabı
+                <strong>Yazılım:</strong> BSR Maps - Nivelman Hesabı
               </span>
             </div>
           </div>

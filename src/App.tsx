@@ -247,7 +247,7 @@ export default function App() {
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 text-xs py-4 text-center border-t border-slate-800 no-print mt-auto">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <span>ACB Maps - Nivelman Hesabı v1.0</span>
+          <span>BSR Maps - Nivelman Hesabı v1.0</span>
         </div>
       </footer>
 
