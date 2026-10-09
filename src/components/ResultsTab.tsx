@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdjustmentResult } from '../types/gnss';
+import { Sqrt } from './Sqrt';
 import { exportAdjustmentToExcel, exportAdjustmentToKML } from '../utils/geodesy';
 import {
   CheckCircle2,
@@ -75,7 +76,10 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({ results, onSwitchToData 
           <div className="text-base sm:text-lg font-bold font-mono text-slate-700 mt-1">
             &plusmn; {res.T_mm.toFixed(2)} mm
           </div>
-          <span className="text-[10px] text-slate-400">m = {res.m_coef} mm/&radic;km</span>
+          <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+            <span>m = {res.m_coef} mm/</span>
+            <Sqrt>km</Sqrt>
+          </span>
         </div>
 
         {/* Dengeleme Durumu Kartı */}

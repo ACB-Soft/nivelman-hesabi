@@ -1,5 +1,6 @@
 import React from 'react';
 import { AdjustmentResult } from '../types/gnss';
+import { Sqrt } from './Sqrt';
 import { Printer, AlertCircle } from 'lucide-react';
 
 interface ReportTabProps {
@@ -103,12 +104,14 @@ export const ReportTab: React.FC<ReportTabProps> = ({ results }) => {
                 <strong>Kapanma Hatası (W):</strong> {res.W_mm >= 0 ? '+' : ''}
                 {res.W_mm.toFixed(2)} mm
               </p>
-              <p>
-                <strong>Tolerans Sınırı (T):</strong> &plusmn; {res.T_mm.toFixed(2)} mm (Durum:{' '}
-                <strong className={res.isAccepted ? 'text-emerald-700' : 'text-rose-700'}>
-                  {res.isAccepted ? 'KABUL' : 'RED'}
-                </strong>
-                )
+              <p className="flex items-center gap-1 flex-wrap">
+                <strong>Tolerans Sınırı (T = m&middot;<Sqrt>S<sub>km</sub></Sqrt>):</strong>{' '}
+                <span>&plusmn; {res.T_mm.toFixed(2)} mm</span>
+                <span>(m = {res.m_coef} mm/<Sqrt>km</Sqrt>, Durum:{' '}
+                  <strong className={res.isAccepted ? 'text-emerald-700' : 'text-rose-700'}>
+                    {res.isAccepted ? 'KABUL' : 'RED'}
+                  </strong>
+                )</span>
               </p>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BookOpen, Check } from 'lucide-react';
+import { Sqrt } from './Sqrt';
 
 export const DocsTab: React.FC = () => {
   return (
@@ -143,15 +144,21 @@ export const DocsTab: React.FC = () => {
           <p className="text-xs text-slate-600 leading-relaxed">
             Büyük Ölçekli Harita ve Harita Bilgileri Üretim Yönetmeliği (BÖHHBÜY) uyarınca nivelman kapanma toleransı (T):
           </p>
-          <div className="bg-slate-100 text-slate-900 p-4 rounded-xl font-mono text-lg sm:text-xl font-bold flex justify-center items-center gap-4 my-3 shadow-inner">
-            <span>T = m &middot; &radic;<span className="underline">S<sub>km</sub></span> [mm]</span>
+          <div className="bg-slate-100 text-slate-900 p-4 rounded-xl font-mono text-lg sm:text-xl font-bold flex justify-center items-center gap-3 my-3 shadow-inner">
+            <span className="flex items-center gap-2">
+              <span>T = m &middot;</span>
+              <Sqrt>S<sub>km</sub></Sqrt>
+              <span>[mm]</span>
+            </span>
           </div>
-          <ul className="list-disc list-inside text-xs text-slate-600 space-y-1 pl-2">
+          <ul className="list-disc list-inside text-xs text-slate-600 space-y-1.5 pl-2">
             <li>
               <b>S<sub>km</sub>:</b> Kilometre cinsinden toplam güzergah uzunluğu (S<sub>toplam</sub> / 1000).
             </li>
-            <li>
-              <b>m:</b> Tolerans katsayısı (Örn. Standart Geometrik / GNSS nivelmanında m = 12 mm/&radic;km).
+            <li className="flex items-center gap-1 flex-wrap">
+              <span><b>m:</b> Tolerans katsayısı (Örn. Standart Geometrik / GNSS nivelmanında m = 12 mm/</span>
+              <Sqrt>km</Sqrt>
+              <span>).</span>
             </li>
             <li>
               <b>Kriter:</b> Eğer <b>|W<sub>mm</sub>| &le; T</b> ise dengeleme kabul edilir; aksi durumda ölçülerin tekrarı gerekir.

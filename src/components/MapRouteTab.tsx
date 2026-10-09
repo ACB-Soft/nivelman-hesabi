@@ -34,12 +34,15 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
   const leafletMapRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
+  const lastPointsSignatureRef = useRef<string>('');
 
   const [selectedRoute, setSelectedRoute] = useState<GNSSPoint[]>([]);
   const [isSelectionActive, setIsSelectionActive] = useState(false);
   const [mapType, setMapType] = useState<'hybrid' | 'osm' | 'grid'>(
     typeof navigator !== 'undefined' && !navigator.onLine ? 'grid' : 'osm'
   );
+  const [scale, setScale] = useState<{ width: number; label: string }>({ width: 75, label: '100 m' });
+  const [currentZoom, setCurrentZoom] = useState<number>(6);
 
   // Initialize selectedRoute with points order if not set
   useEffect(() => {
@@ -47,6 +50,37 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       setSelectedRoute([...points]);
     }
   }, [points]);
+
+  // Calculate dynamic scale bar metrics from Leaflet map
+  const updateScale = () => {
+    const map = leafletMapRef.current;
+    if (!map) return;
+    try {
+      const maxWidth = 88;
+      const center = map.getCenter();
+      const p1 = map.latLngToContainerPoint(center);
+      const p2 = L.point(p1.x + maxWidth, p1.y);
+      const targetLatLng = map.containerPointToLatLng(p2);
+      const meters = center.distanceTo(targetLatLng);
+
+      if (!meters || meters <= 0 || isNaN(meters)) return;
+
+      const pow10 = Math.pow(10, Math.floor(Math.log10(meters)));
+      const d = meters / pow10;
+      let factor = 1;
+      if (d >= 5) factor = 5;
+      else if (d >= 2) factor = 2;
+      else factor = 1;
+      const roundMeters = factor * pow10;
+
+      const exactWidth = Math.max(52, Math.min(108, Math.round(maxWidth * (roundMeters / meters))));
+      const label = roundMeters >= 1000 ? `${roundMeters / 1000} km` : `${roundMeters} m`;
+
+      setScale({ width: exactWidth, label });
+    } catch {
+      // Safe fallback
+    }
+  };
 
   // Leaflet map initialization
   useEffect(() => {
@@ -78,14 +112,29 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       leafletMapRef.current = map;
       markersLayerRef.current = markersGroup;
       polylineRef.current = line;
+
+      const onZoom = () => {
+        setCurrentZoom(map.getZoom());
+        updateScale();
+      };
+
+      map.on('zoomend', onZoom);
+      map.on('moveend resize', updateScale);
     }
 
-    // Invalidate map size after tab render
+    // Invalidate map size after tab render and update scale
     const timer = setTimeout(() => {
-      leafletMapRef.current?.invalidateSize();
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize();
+        setCurrentZoom(leafletMapRef.current.getZoom());
+        updateScale();
+      }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      leafletMapRef.current?.off('zoomend moveend resize');
+    };
   }, []);
 
   // Update Tile Layer if switched
@@ -174,9 +223,9 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
           ctx.stroke();
 
           // 5. Geodetic surveyor reticle crosshairs (+) at 64px intersections
-          ctx.strokeStyle = '#0284c7';
-          ctx.lineWidth = 1.2;
-          const tickLen = 4.5;
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1;
+          const tickLen = 4;
           for (let x = 64; x < size; x += 64) {
             for (let y = 64; y < size; y += 64) {
               ctx.beginPath();
@@ -188,60 +237,12 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             }
           }
 
-          // 6. Central Benchmark Reticle Target at Tile Center (128, 128)
-          const cx = 128;
-          const cy = 128;
-          ctx.save();
-          ctx.strokeStyle = 'rgba(2, 132, 199, 0.4)';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([3, 3]);
-          ctx.beginPath();
-          ctx.arc(cx, cy, 14, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-
-          // Center target point
-          ctx.fillStyle = '#0284c7';
-          ctx.beginPath();
-          ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
-          ctx.fill();
-
-          // 7. Sleek CAD Technical Coordinate Pill Badge (Top-Left)
-          const badgeX = 8;
-          const badgeY = 8;
-          const badgeW = 126;
-          const badgeH = 19;
-          const radius = 4;
-
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.beginPath();
-          if (typeof (ctx as any).roundRect === 'function') {
-            (ctx as any).roundRect(badgeX, badgeY, badgeW, badgeH, radius);
-          } else {
-            ctx.rect(badgeX, badgeY, badgeW, badgeH);
-          }
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(203, 213, 225, 0.85)';
-          ctx.lineWidth = 0.8;
-          ctx.stroke();
-
-          // Accent dot
-          ctx.fillStyle = '#0284c7';
-          ctx.beginPath();
-          ctx.arc(badgeX + 7.5, badgeY + 9.5, 2.2, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Monospace coordinates
-          ctx.fillStyle = '#475569';
-          ctx.font = '600 9px monospace';
-          ctx.fillText(`KARE [${coords.x},${coords.y}] Z:${coords.z}`, badgeX + 15, badgeY + 13);
-
           return tile;
         },
       });
 
       new (OfflineCanvasGrid as any)({
-        attribution: 'Modern CAD Mühendislik Izgarası (Çevrimdışı)',
+        attribution: 'Çevrimdışı Izgara',
       }).addTo(map);
     }
   }, [mapType]);
@@ -270,16 +271,28 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       const selIndex = selectedRoute.findIndex((sp) => sp.id === pt.id);
       const isSelected = selIndex !== -1;
 
+      // Dynamic zoom-responsive font size and padding
+      // Zoom levels:
+      // <= 8: 9px (compact)
+      // 10: 10px
+      // 13: 11.5px
+      // 15: 13px
+      // >= 17: 15px - 16px (large and prominent!)
+      const fontSize = Math.max(9, Math.min(16, +(7.5 + (currentZoom - 6) * 0.7).toFixed(1)));
+      const paddingY = Math.max(1, Math.min(4, Math.round((currentZoom - 8) * 0.3)));
+      const paddingX = Math.max(4, Math.min(10, Math.round((currentZoom - 6) * 0.5)));
+      const borderWidth = currentZoom >= 14 ? 2 : 1.5;
+
       let badgeClass = 'leaflet-marker-badge';
       let labelText = pt.id;
 
       if (isSelected) {
         if (selIndex === 0) {
           badgeClass += ' start-badge';
-          labelText = `1. ${pt.id} (BAŞLANGIÇ)`;
+          labelText = currentZoom >= 14 ? `1. ${pt.id} (BAŞLANGIÇ)` : `1. ${pt.id}`;
         } else if (selIndex === selectedRoute.length - 1 && selectedRoute.length === points.length) {
           badgeClass += ' end-badge';
-          labelText = `${selIndex + 1}. ${pt.id} (BİTİŞ)`;
+          labelText = currentZoom >= 14 ? `${selIndex + 1}. ${pt.id} (BİTİŞ)` : `${selIndex + 1}. ${pt.id}`;
         } else {
           labelText = `${selIndex + 1}. ${pt.id}`;
         }
@@ -287,9 +300,9 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
       const customIcon = L.divIcon({
         className: 'custom-leaflet-marker',
-        html: `<div class="${badgeClass}">${labelText}</div>`,
-        iconSize: [120, 26],
-        iconAnchor: [60, 13],
+        html: `<div class="${badgeClass}" style="font-size: ${fontSize}px; padding: ${paddingY}px ${paddingX}px; border-width: ${borderWidth}px;">${labelText}</div>`,
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
       });
 
       const marker = L.marker(latLng, { icon: customIcon });
@@ -319,10 +332,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       polyline.setLatLngs(lineLatLngs);
     }
 
-    if (latLngs.length > 0) {
+    const currentSignature = points.map((p) => p.id).join(',');
+    if (latLngs.length > 0 && currentSignature !== lastPointsSignatureRef.current) {
+      lastPointsSignatureRef.current = currentSignature;
       leafletMapRef.current.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50] });
+      setTimeout(updateScale, 150);
     }
-  }, [points, selectedRoute, crsSystem, crsDom, isSelectionActive]);
+  }, [points, selectedRoute, crsSystem, crsDom, isSelectionActive, currentZoom]);
 
   const handleMarkerClick = (point: GNSSPoint) => {
     if (!isSelectionActive) return;
@@ -428,7 +444,6 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             title="Sıfır internet/ağ bağımlılığı - Yerel vektörel ızgara altlığı"
           >
             <span>Çevrimdışı Izgara</span>
-            <span className={`text-[10px] px-1 py-0.2 rounded font-mono ${mapType === 'grid' ? 'bg-emerald-700/80 text-emerald-100' : 'bg-slate-200 text-slate-600'}`}>0 Ağ</span>
           </button>
         </div>
 
@@ -511,22 +526,36 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         <div className="lg:col-span-3 h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0">
           <div ref={mapContainerRef} className="w-full h-full" />
 
-          {/* Modern CAD Offline Grid HUD Badge */}
-          {mapType === 'grid' && (
-            <div className="absolute top-3 right-3 z-400 bg-slate-900/90 backdrop-blur-md text-white px-3 py-1.5 rounded-lg border border-slate-700 shadow-lg text-[11px] flex items-center gap-2 pointer-events-none animate-in fade-in">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-semibold text-slate-100">CAD Mühendislik Izgarası</span>
-              <span className="text-[10px] text-slate-400 border-l border-slate-700 pl-2">Sıfır Ağ · %100 Yerel Vektör</span>
-            </div>
-          )}
-
-          {/* Geodetic North Arrow / Compass Rose Widget */}
+          {/* Geodetic North Arrow & Dynamic Linear Scale Bar (Çizgi Ölçek) */}
           <div
-            className="absolute bottom-5 left-3 z-400 bg-white/95 backdrop-blur-xs text-slate-700 px-2 py-1 rounded-md border border-slate-300 shadow-md flex items-center gap-1 pointer-events-none select-none text-[10px] font-bold"
-            title="Kuzey Yönü"
+            className="absolute bottom-4 left-3 z-400 bg-white/95 backdrop-blur-xs text-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-300 shadow-md flex items-center gap-3 pointer-events-none select-none text-xs"
+            title="Kuzey Yönü ve Çizgi Ölçek"
           >
-            <span className="text-rose-600 font-black text-xs leading-none">▲</span>
-            <span className="text-slate-800">K</span>
+            {/* North Arrow (Kuzey Oku) - Solid Black */}
+            <div className="flex items-center gap-1 font-bold text-[11px] pr-2.5 border-r border-slate-300">
+              <span className="text-slate-950 font-black text-xs leading-none">▲</span>
+              <span className="text-slate-950 tracking-wider">K</span>
+            </div>
+
+            {/* Graphic Linear Scale Bar (Çizgi Ölçek - 4 Bölümlü) */}
+            <div className="flex flex-col items-center">
+              <div
+                className="flex justify-between text-[9px] font-mono font-bold text-slate-800 leading-none mb-1"
+                style={{ width: `${scale.width}px` }}
+              >
+                <span>0</span>
+                <span>{scale.label}</span>
+              </div>
+              <div
+                className="h-1.5 border border-slate-900 relative flex overflow-hidden shadow-2xs"
+                style={{ width: `${scale.width}px` }}
+              >
+                <div className="w-1/4 h-full bg-slate-950" />
+                <div className="w-1/4 h-full bg-white border-l border-slate-900" />
+                <div className="w-1/4 h-full bg-slate-950 border-l border-slate-900" />
+                <div className="w-1/4 h-full bg-white border-l border-slate-900" />
+              </div>
+            </div>
           </div>
         </div>
 

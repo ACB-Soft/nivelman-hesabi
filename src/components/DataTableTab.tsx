@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GNSSPoint, CRSSystem } from '../types/gnss';
+import { Sqrt } from './Sqrt';
 import {
   Plus,
   Trash2,
@@ -201,7 +202,7 @@ export const DataTableTab: React.FC<DataTableTabProps> = ({
 
             <div>
               <label className="block font-medium text-slate-600 mb-1">
-                Tolerans Katsayısı m (mm/&radic;<span className="underline">km</span>)
+                Tolerans Katsayısı m (mm/<Sqrt>km</Sqrt>)
               </label>
               <div className="relative">
                 <input
@@ -213,7 +214,10 @@ export const DataTableTab: React.FC<DataTableTabProps> = ({
                 />
                 <span className="absolute right-2.5 top-2 text-slate-400 font-mono text-[10px]">mm</span>
               </div>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">T = m &middot; &radic;S<sub>km</sub> (Standart: 12 mm/&radic;km)</span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block flex items-center gap-1 flex-wrap">
+                <span>T = m &middot; <Sqrt>S<sub>km</sub></Sqrt></span>
+                <span>(Standart: 12 mm/<Sqrt>km</Sqrt>)</span>
+              </span>
             </div>
 
             <div>
@@ -237,17 +241,7 @@ export const DataTableTab: React.FC<DataTableTabProps> = ({
               <label className="block font-medium text-slate-600 mb-1">Projeksiyon / Datum Sistemi</label>
               <select
                 value={crsSystem}
-                onChange={(e) => {
-                  const newSys = e.target.value as CRSSystem;
-                  setCrsSystem(newSys);
-                  if (newSys === 'utm6') {
-                    if (['30', '36', '42'].includes(crsDom)) {
-                      if (crsDom === '30') setCrsDom('33');
-                      else if (crsDom === '36') setCrsDom('39');
-                      else if (crsDom === '42') setCrsDom('45');
-                    }
-                  }
-                }}
+                onChange={(e) => setCrsSystem(e.target.value as CRSSystem)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition"
               >
                 <option value="itrf3">ITRF96 / TUREF (3° Dilimli TM)</option>
@@ -258,38 +252,21 @@ export const DataTableTab: React.FC<DataTableTabProps> = ({
             </div>
 
             <div>
-              <label className="block font-medium text-slate-600 mb-1">
-                {crsSystem === 'utm6' ? 'UTM 6° Dilim No ve DOM' : 'Dilim Orta Meridyeni (DOM - 3°)'}
-              </label>
+              <label className="block font-medium text-slate-600 mb-1">Dilim Orta Meridyeni (DOM / Zone)</label>
               <select
                 value={crsDom}
                 onChange={(e) => setCrsDom(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition"
               >
-                {crsSystem === 'utm6' ? (
-                  <>
-                    <option value="27">Zone 35 / DOM 27° (24°-30°D / Trakya, Çanakkale, İzmir)</option>
-                    <option value="33">Zone 36 / DOM 33° (30°-36°D / İstanbul, Bursa, Ankara, Antalya)</option>
-                    <option value="39">Zone 37 / DOM 39° (36°-42°D / Samsun, Kayseri, Mersin, Trabzon, Adana)</option>
-                    <option value="45">Zone 38 / DOM 45° (42°-48°D / Erzurum, Diyarbakır, Van, Kars, Hakkari)</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="27">DOM 27° (Dilim 9 / Çanakkale, Balıkesir B., İzmir)</option>
-                    <option value="30">DOM 30° (Dilim 10 / İstanbul, Bursa, Kocaeli, Muğla)</option>
-                    <option value="33">DOM 33° (Dilim 11 / Bolu, Eskişehir, Ankara B., Antalya)</option>
-                    <option value="36">DOM 36° (Dilim 12 / Zonguldak, Ankara D., Konya, Mersin)</option>
-                    <option value="39">DOM 39° (Dilim 13 / Samsun, Kayseri, Sivas, Adana)</option>
-                    <option value="42">DOM 42° (Dilim 14 / Ordu, Giresun, Erzincan, Gaziantep)</option>
-                    <option value="45">DOM 45° (Dilim 15 / Trabzon, Erzurum, Diyarbakır, Mardin, Van)</option>
-                  </>
-                )}
+                <option value="27">DOM 27° (Zone 35 / İstanbul B., Çanakkale vb.)</option>
+                <option value="30">DOM 30° (Bursa, Bilecik, Kütahya vb.)</option>
+                <option value="33">DOM 33° (Zone 36 / Ankara, Konya, Antalya vb.)</option>
+                <option value="36">DOM 36° (Samsun, Kayseri, Mersin vb.)</option>
+                <option value="39">DOM 39° (Zone 37 / Trabzon, Erzurum, Adana vb.)</option>
+                <option value="42">DOM 42° (Erzincan, Diyarbakır, Mardin vb.)</option>
+                <option value="45">DOM 45° (Zone 38 / Kars, Van, Hakkari vb.)</option>
               </select>
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                {crsSystem === 'utm6'
-                  ? '6° UTM Dilim Numarası ve Dilim Orta Meridyeni'
-                  : '3° TM Dilim Orta Meridyeni (BÖHHBÜY standardı)'}
-              </span>
+              <span className="text-[10px] text-slate-400 mt-0.5 block">Projenin bulunduğu meridyen dilimi</span>
             </div>
           </div>
         </div>

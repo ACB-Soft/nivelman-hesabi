@@ -43,22 +43,34 @@
 }
 
 /* Leaflet Custom Marker Numbers */
+.custom-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+}
 .leaflet-marker-badge {
   background-color: #0369a1;
   color: white;
   border-radius: 9999px;
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 700;
   border: 2px solid white;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
   text-align: center;
   white-space: nowrap;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  line-height: 1.2;
+  transition: transform 0.15s ease, font-size 0.15s ease, padding 0.15s ease;
 }
 .leaflet-marker-badge:hover {
-  transform: scale(1.08);
+  transform: translate(-50%, -50%) scale(1.12);
+  z-index: 1000 !important;
 }
 .leaflet-marker-badge.start-badge {
   background-color: #16a34a !important;
