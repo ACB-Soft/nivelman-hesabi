@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { SavedProject } from '../utils/projectStorage';
+import { signBackupData } from '../utils/backupIntegrity';
 import { DocsTab } from './DocsTab';
 import {
   FilePlus2,
@@ -122,7 +123,8 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       parameters: p.data.parameters,
       adjustmentResults: p.data.adjustmentResults,
     };
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
+    const signedPayload = signBackupData(exportPayload);
+    const blob = new Blob([JSON.stringify(signedPayload, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
@@ -658,29 +660,14 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
       {/* Teknik Altyapı Modal */}
       {isDocsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in">
-          <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-                  <BookOpen className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Teknik Altyapı</h3>
-                  <p className="text-[11px] text-slate-500">
-                    Jeodezik formüller, dengeleme teorisi ve tolerans standartları
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsDocsOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+        <div
+          onClick={() => setIsDocsOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+          >
             {/* Modal Content */}
             <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar">
               <DocsTab />
@@ -689,8 +676,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             {/* Modal Footer */}
             <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
               <button
+                type="button"
                 onClick={() => setIsDocsOpen(false)}
-                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
                 Kapat
               </button>

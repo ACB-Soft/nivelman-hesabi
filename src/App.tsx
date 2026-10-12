@@ -20,6 +20,7 @@ import {
   deleteProjectFromStorage,
   updateProjectNameInStorage
 } from './utils/projectStorage';
+import { signBackupData, verifyBackupIntegrity } from './utils/backupIntegrity';
 import {
   Layers,
   Table,
@@ -28,6 +29,7 @@ import {
   FileText,
   CheckCircle2,
   AlertTriangle,
+  ShieldAlert,
   Home
 } from 'lucide-react';
 
@@ -36,6 +38,8 @@ export default function App() {
   const [points, setPoints] = useState<GNSSPoint[]>([]);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [pendingRestoreData, setPendingRestoreData] = useState<any | null>(null);
+  const [integrityWarningOpen, setIntegrityWarningOpen] = useState(false);
 
   useEffect(() => {
     setSavedProjects(getSavedProjects());
@@ -241,7 +245,9 @@ export default function App() {
       adjustmentResults: adjustmentResults,
     };
 
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+    const signedBackupData = signBackupData(backupData);
+
+    const blob = new Blob([JSON.stringify(signedBackupData, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
@@ -259,141 +265,170 @@ export default function App() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showToast('Hesap yedeği başarıyla indirildi (.json)');
+    showToast('Hesap yedeği başarıyla indirildi (.json, HMAC korumalı)');
+  };
+
+  const executeApplyRestore = (data: any) => {
+    // 0. Proje İsmini aktar
+    const importedName = data.name || data.projectName || '';
+    if (importedName) {
+      setProjectName(importedName);
+    }
+
+    // 1. Nokta listesini çıkar
+    const pts = Array.isArray(data) ? data : (data.points || []);
+    if (!Array.isArray(pts) || pts.length === 0) {
+      alert('Geçersiz yedek dosyası: Nokta verisi bulunamadı!');
+      return;
+    }
+
+    const validatedPoints: GNSSPoint[] = pts.map((p: any, idx: number) => ({
+      id: String(p.id ?? `P.${idx + 1}`),
+      y: Number(p.y) || 0,
+      x: Number(p.x) || 0,
+      h: Number(p.h) || 0,
+      n: Number(p.n) || 0,
+      knownH: p.knownH !== undefined && p.knownH !== null ? Number(p.knownH) : null,
+    }));
+
+    setPoints(validatedPoints);
+
+    // 2. Parametreleri aktar
+    if (data.parameters) {
+      if (data.parameters.startKnownH !== undefined && data.parameters.startKnownH !== null) {
+        setStartKnownH(String(data.parameters.startKnownH));
+      }
+      if (data.parameters.endKnownH !== undefined && data.parameters.endKnownH !== null) {
+        setEndKnownH(String(data.parameters.endKnownH));
+      }
+      if (data.parameters.toleranceCoef !== undefined && data.parameters.toleranceCoef !== null) {
+        setToleranceCoef(String(data.parameters.toleranceCoef));
+      }
+      if (data.parameters.crsSystem) {
+        setCrsSystem(data.parameters.crsSystem);
+      }
+      if (data.parameters.crsDom !== undefined && data.parameters.crsDom !== null) {
+        setCrsDom(String(data.parameters.crsDom));
+      }
+    } else {
+      if (data.H_start !== undefined && data.H_start !== null) setStartKnownH(String(data.H_start));
+      if (data.H_end !== undefined && data.H_end !== null) setEndKnownH(String(data.H_end));
+      if (data.m_coef !== undefined && data.m_coef !== null) setToleranceCoef(String(data.m_coef));
+      if (data.crsSystem) setCrsSystem(data.crsSystem);
+      if (data.dom !== undefined && data.dom !== null) setCrsDom(String(data.dom));
+    }
+
+    // 3. Dengeleme sonuçlarını aktar (varsa)
+    let adjRes: AdjustmentResult | null = null;
+    if (data.adjustmentResults) {
+      adjRes = data.adjustmentResults;
+      setAdjustmentResults(data.adjustmentResults);
+    } else if (data.points && data.H_start !== undefined && data.deltaH_real !== undefined) {
+      adjRes = data as AdjustmentResult;
+      setAdjustmentResults(data as AdjustmentResult);
+    } else {
+      setAdjustmentResults(null);
+    }
+
+    // 4. Proje ID'sini ve tarihini belirle
+    const importedId = data.id || `proj_${Date.now()}`;
+    setCurrentProjectId(importedId);
+
+    // Eğer dosyada dengeleme sonuçları varsa ve henüz listede yoksa,
+    // orijinal dengelendiği tarih bilgisiyle ekle (şimdiki saatle ezme!)
+    const alreadyInList = savedProjects.some((p) => p.id === importedId);
+    const originalDate =
+      data.calculatedAt ||
+      data.updatedAt ||
+      (data.exportedAt
+        ? new Date(data.exportedAt).toLocaleString('tr-TR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : new Date().toLocaleString('tr-TR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }));
+
+    if (!alreadyInList && adjRes) {
+      const startId = validatedPoints[0]?.id || 'A';
+      const endId = validatedPoints[validatedPoints.length - 1]?.id || 'B';
+      const importedProj: SavedProject = {
+        id: importedId,
+        name: importedName || `${startId} - ${endId} Nivelman Güzergahı`,
+        calculatedAt: originalDate,
+        updatedAt: originalDate,
+        pointCount: validatedPoints.length,
+        startPointId: startId,
+        endPointId: endId,
+        totalDistKm: adjRes?.totalDistKm || data.totalDistKm,
+        closingErrorMm: adjRes?.W_mm || data.W_mm,
+        isAccepted: adjRes?.isAccepted !== undefined ? adjRes.isAccepted : data.isAccepted,
+        data: {
+          points: validatedPoints,
+          parameters: {
+            startKnownH: data.parameters?.startKnownH || String(data.H_start || ''),
+            endKnownH: data.parameters?.endKnownH || String(data.H_end || ''),
+            toleranceCoef: data.parameters?.toleranceCoef || String(data.m_coef || '12'),
+            crsSystem: data.parameters?.crsSystem || data.crsSystem || 'itrf3',
+            crsDom: String(data.parameters?.crsDom || data.dom || '30'),
+          },
+          adjustmentResults: adjRes,
+        },
+      };
+      saveProjectToStorage(importedProj);
+      setSavedProjects(getSavedProjects());
+    }
+
+    if (adjRes) {
+      setActiveTab('results');
+    } else {
+      setActiveTab('data');
+    }
+
+    showToast(`${validatedPoints.length} nokta ve tüm hesap parametreleri başarıyla yüklendi!`);
   };
 
   const handleRestoreBackup = (data: any) => {
     try {
       if (!data) throw new Error('Geçersiz dosya');
 
-      // 0. Proje İsmini aktar
-      const importedName = data.name || data.projectName || '';
-      if (importedName) {
-        setProjectName(importedName);
-      }
+      // Gizli Anahtarlı HMAC Bütünlük Doğrulaması
+      const integrity = verifyBackupIntegrity(data);
 
-      // 1. Nokta listesini çıkar
-      const pts = Array.isArray(data) ? data : (data.points || []);
-      if (!Array.isArray(pts) || pts.length === 0) {
-        alert('Geçersiz yedek dosyası: Nokta verisi bulunamadı!');
+      if (!integrity.isValid) {
+        // Dosya eşleşmediğinde veya değiştirildiğinde kullanıcıya sor:
+        setPendingRestoreData(data);
+        setIntegrityWarningOpen(true);
         return;
       }
 
-      const validatedPoints: GNSSPoint[] = pts.map((p: any, idx: number) => ({
-        id: String(p.id ?? `P.${idx + 1}`),
-        y: Number(p.y) || 0,
-        x: Number(p.x) || 0,
-        h: Number(p.h) || 0,
-        n: Number(p.n) || 0,
-        knownH: p.knownH !== undefined && p.knownH !== null ? Number(p.knownH) : null,
-      }));
-
-      setPoints(validatedPoints);
-
-      // 2. Parametreleri aktar
-      if (data.parameters) {
-        if (data.parameters.startKnownH !== undefined && data.parameters.startKnownH !== null) {
-          setStartKnownH(String(data.parameters.startKnownH));
-        }
-        if (data.parameters.endKnownH !== undefined && data.parameters.endKnownH !== null) {
-          setEndKnownH(String(data.parameters.endKnownH));
-        }
-        if (data.parameters.toleranceCoef !== undefined && data.parameters.toleranceCoef !== null) {
-          setToleranceCoef(String(data.parameters.toleranceCoef));
-        }
-        if (data.parameters.crsSystem) {
-          setCrsSystem(data.parameters.crsSystem);
-        }
-        if (data.parameters.crsDom !== undefined && data.parameters.crsDom !== null) {
-          setCrsDom(String(data.parameters.crsDom));
-        }
-      } else {
-        if (data.H_start !== undefined && data.H_start !== null) setStartKnownH(String(data.H_start));
-        if (data.H_end !== undefined && data.H_end !== null) setEndKnownH(String(data.H_end));
-        if (data.m_coef !== undefined && data.m_coef !== null) setToleranceCoef(String(data.m_coef));
-        if (data.crsSystem) setCrsSystem(data.crsSystem);
-        if (data.dom !== undefined && data.dom !== null) setCrsDom(String(data.dom));
-      }
-
-      // 3. Dengeleme sonuçlarını aktar (varsa)
-      let adjRes: AdjustmentResult | null = null;
-      if (data.adjustmentResults) {
-        adjRes = data.adjustmentResults;
-        setAdjustmentResults(data.adjustmentResults);
-      } else if (data.points && data.H_start !== undefined && data.deltaH_real !== undefined) {
-        adjRes = data as AdjustmentResult;
-        setAdjustmentResults(data as AdjustmentResult);
-      } else {
-        setAdjustmentResults(null);
-      }
-
-      // 4. Proje ID'sini ve tarihini belirle
-      const importedId = data.id || `proj_${Date.now()}`;
-      setCurrentProjectId(importedId);
-
-      // Eğer dosyada dengeleme sonuçları varsa ve henüz listede yoksa,
-      // orijinal dengelendiği tarih bilgisiyle ekle (şimdiki saatle ezme!)
-      const alreadyInList = savedProjects.some((p) => p.id === importedId);
-      const originalDate =
-        data.calculatedAt ||
-        data.updatedAt ||
-        (data.exportedAt
-          ? new Date(data.exportedAt).toLocaleString('tr-TR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : new Date().toLocaleString('tr-TR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }));
-
-      if (!alreadyInList && adjRes) {
-        const startId = validatedPoints[0]?.id || 'A';
-        const endId = validatedPoints[validatedPoints.length - 1]?.id || 'B';
-        const importedProj: SavedProject = {
-          id: importedId,
-          name: importedName || `${startId} - ${endId} Nivelman Güzergahı`,
-          calculatedAt: originalDate,
-          updatedAt: originalDate,
-          pointCount: validatedPoints.length,
-          startPointId: startId,
-          endPointId: endId,
-          totalDistKm: adjRes?.totalDistKm || data.totalDistKm,
-          closingErrorMm: adjRes?.W_mm || data.W_mm,
-          isAccepted: adjRes?.isAccepted !== undefined ? adjRes.isAccepted : data.isAccepted,
-          data: {
-            points: validatedPoints,
-            parameters: {
-              startKnownH: data.parameters?.startKnownH || String(data.H_start || ''),
-              endKnownH: data.parameters?.endKnownH || String(data.H_end || ''),
-              toleranceCoef: data.parameters?.toleranceCoef || String(data.m_coef || '12'),
-              crsSystem: data.parameters?.crsSystem || data.crsSystem || 'itrf3',
-              crsDom: String(data.parameters?.crsDom || data.dom || '30'),
-            },
-            adjustmentResults: adjRes,
-          },
-        };
-        saveProjectToStorage(importedProj);
-        setSavedProjects(getSavedProjects());
-      }
-
-      if (adjRes) {
-        setActiveTab('results');
-      } else {
-        setActiveTab('data');
-      }
-
-      showToast(`${validatedPoints.length} nokta ve tüm hesap parametreleri başarıyla yüklendi!`);
+      // Doğrulama başarılı ise doğrudan yükle
+      executeApplyRestore(data);
     } catch (err) {
       console.error(err);
       alert('Yedek dosyası okunurken hata oluştu. Lütfen geçerli bir .json dosyası seçiniz.');
     }
+  };
+
+  const handleConfirmIntegrityProceed = () => {
+    if (pendingRestoreData) {
+      executeApplyRestore(pendingRestoreData);
+      setPendingRestoreData(null);
+    }
+    setIntegrityWarningOpen(false);
+  };
+
+  const handleCancelIntegrityProceed = () => {
+    setPendingRestoreData(null);
+    setIntegrityWarningOpen(false);
+    showToast('Dosya yükleme iptal edildi.');
   };
 
   return (
@@ -599,6 +634,61 @@ export default function App() {
         <div className="fixed bottom-12 sm:bottom-14 right-4 sm:right-5 bg-emerald-600 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-xl z-50 flex items-center gap-2 animate-in slide-in-from-bottom-2">
           <CheckCircle2 className="w-4 h-4" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* HMAC Doğrulama Uyarısı Modalı */}
+      {integrityWarningOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 no-print animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-rose-200 overflow-hidden animate-in zoom-in-95">
+            <div className="bg-rose-50 border-b border-rose-100 p-4 sm:p-5 flex items-start gap-3.5">
+              <div className="p-2.5 bg-rose-100 text-rose-600 rounded-xl shrink-0">
+                <ShieldAlert className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                  Veri Bütünlüğü Doğrulama Uyarısı
+                </h3>
+                <span className="inline-block text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full bg-rose-200/80 text-rose-800">
+                  HMAC Güvenlik Kontrolü
+                </span>
+              </div>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-4 text-xs">
+              <p className="text-slate-800 text-sm font-semibold leading-relaxed">
+                Doğrulama Başarısız: Bu dosya üzerindeki ölçüm veya dengeleme verileri harici olarak değiştirilmiştir. Yine de devam etmek istiyor musunuz?
+              </p>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-600 space-y-1.5 text-[11px] leading-relaxed">
+                <div className="flex items-center gap-1.5 font-semibold text-slate-700">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Teknik Detay:</span>
+                </div>
+                <p>
+                  Dosya içerisindeki kriptografik HMAC kontrol imzası, mevcut koordinat, kot veya hesap parametreleriyle uyuşmuyor. Bu durum verilerin harici bir editörle manuel olarak değiştirildiğini veya eski/imzasız bir yedek olduğunu gösterir.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelIntegrityProceed}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition cursor-pointer"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmIntegrityProceed}
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl transition shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>Yine de Devam Et</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
