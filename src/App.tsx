@@ -208,16 +208,28 @@ export default function App() {
     const currentProj = currentProjectId
       ? savedProjects.find((p) => p.id === currentProjectId)
       : null;
-    const calcDate = currentProj?.calculatedAt || currentProj?.updatedAt || undefined;
+    const calcDate =
+      currentProj?.calculatedAt ||
+      currentProj?.updatedAt ||
+      (adjustmentResults
+        ? new Date().toLocaleString('tr-TR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : undefined);
 
     const backupData = {
       app: 'BSR Maps - Nivelman Hesabı',
       version: '1.0',
       exportedAt: new Date().toISOString(),
       id: currentProjectId || undefined,
-      calculatedAt: calcDate,
       name: projectName.trim() || undefined,
       projectName: projectName.trim() || undefined,
+      calculatedAt: calcDate,
+      updatedAt: calcDate,
       points: points,
       parameters: {
         startKnownH,

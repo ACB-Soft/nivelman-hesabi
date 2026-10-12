@@ -103,7 +103,26 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   };
 
   const handleDownloadProjectJSON = (p: SavedProject) => {
-    const blob = new Blob([JSON.stringify(p.data, null, 2)], {
+    const exportPayload = {
+      app: 'BSR Maps - Nivelman Hesabı',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      id: p.id,
+      name: p.name,
+      projectName: p.name,
+      calculatedAt: p.calculatedAt || p.updatedAt,
+      updatedAt: p.updatedAt,
+      pointCount: p.pointCount,
+      startPointId: p.startPointId,
+      endPointId: p.endPointId,
+      totalDistKm: p.totalDistKm,
+      closingErrorMm: p.closingErrorMm,
+      isAccepted: p.isAccepted,
+      points: p.data.points,
+      parameters: p.data.parameters,
+      adjustmentResults: p.data.adjustmentResults,
+    };
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
