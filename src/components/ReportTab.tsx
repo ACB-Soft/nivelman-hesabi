@@ -1,13 +1,14 @@
 import React from 'react';
 import { AdjustmentResult } from '../types/gnss';
 import { Sqrt } from './Sqrt';
-import { Printer, AlertCircle } from 'lucide-react';
+import { Printer, AlertCircle, Download } from 'lucide-react';
 
 interface ReportTabProps {
   results: AdjustmentResult | null;
+  onBackupJSON?: () => void;
 }
 
-export const ReportTab: React.FC<ReportTabProps> = ({ results }) => {
+export const ReportTab: React.FC<ReportTabProps> = ({ results, onBackupJSON }) => {
   if (!results) {
     return (
       <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
@@ -38,13 +39,25 @@ export const ReportTab: React.FC<ReportTabProps> = ({ results }) => {
               Yazdırılabilir veya PDF olarak kaydedilebilir resmi jeodezik hesap raporu
             </p>
           </div>
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2 cursor-pointer"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Raporu Yazdır / PDF</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {onBackupJSON && (
+              <button
+                onClick={onBackupJSON}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer"
+                title="Tüm verileri ve dengeleme hesabını .json dosyası olarak indirin"
+              >
+                <Download className="w-4 h-4" />
+                <span>Yedek Al (.json)</span>
+              </button>
+            )}
+            <button
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-2 cursor-pointer"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Raporu Yazdır / PDF</span>
+            </button>
+          </div>
         </div>
 
         {/* Printable Content */}

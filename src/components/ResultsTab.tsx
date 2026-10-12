@@ -8,15 +8,21 @@ import {
   FileSpreadsheet,
   Globe,
   Sliders,
-  ListCheck
+  ListCheck,
+  Download
 } from 'lucide-react';
 
 interface ResultsTabProps {
   results: AdjustmentResult | null;
   onSwitchToData: () => void;
+  onBackupJSON?: () => void;
 }
 
-export const ResultsTab: React.FC<ResultsTabProps> = ({ results, onSwitchToData }) => {
+export const ResultsTab: React.FC<ResultsTabProps> = ({
+  results,
+  onSwitchToData,
+  onBackupJSON,
+}) => {
   if (!results) {
     return (
       <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm space-y-4">
@@ -174,7 +180,17 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({ results, onSwitchToData 
             <ListCheck className="w-4 h-4 text-sky-600" />
             <span>Dengelenmiş Yükseklik Çizelgesi</span>
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {onBackupJSON && (
+              <button
+                onClick={onBackupJSON}
+                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+                title="Tüm verileri ve yapılan dengeleme hesabını .json formatında yedekleyin"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Yedek Al (.json)</span>
+              </button>
+            )}
             <button
               onClick={() => exportAdjustmentToExcel(res)}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition flex items-center gap-1.5 shadow-sm cursor-pointer"

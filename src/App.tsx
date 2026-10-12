@@ -88,6 +88,106 @@ export default function App() {
     setActiveTab('data');
   };
 
+  const handleBackupJSON = () => {
+    if (!adjustmentResults && points.length === 0) {
+      alert('Yedeklenecek veri bulunamadı!');
+      return;
+    }
+
+    const backupData = {
+      app: 'BSR Maps - Nivelman Hesabı',
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      points: points,
+      parameters: {
+        startKnownH,
+        endKnownH,
+        toleranceCoef,
+        crsSystem,
+        crsDom,
+      },
+      adjustmentResults: adjustmentResults,
+    };
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const startId = points[0]?.id || 'A';
+    const endId = points[points.length - 1]?.id || 'B';
+    a.href = url;
+    a.download = `Nivelman_Yedek_${startId}_${endId}_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Hesap yedeği başarıyla indirildi (.json)');
+  };
+
+  const handleRestoreBackup = (data: any) => {
+    try {
+      if (!data) throw new Error('Geçersiz dosya');
+
+      // 1. Nokta listesini çıkar
+      const pts = Array.isArray(data) ? data : (data.points || []);
+      if (!Array.isArray(pts) || pts.length === 0) {
+        alert('Geçersiz yedek dosyası: Nokta verisi bulunamadı!');
+        return;
+      }
+
+      const validatedPoints: GNSSPoint[] = pts.map((p: any, idx: number) => ({
+        id: String(p.id ?? `P.${idx + 1}`),
+        y: Number(p.y) || 0,
+        x: Number(p.x) || 0,
+        h: Number(p.h) || 0,
+        n: Number(p.n) || 0,
+        knownH: p.knownH !== undefined && p.knownH !== null ? Number(p.knownH) : null,
+      }));
+
+      setPoints(validatedPoints);
+
+      // 2. Parametreleri aktar
+      if (data.parameters) {
+        if (data.parameters.startKnownH !== undefined && data.parameters.startKnownH !== null) {
+          setStartKnownH(String(data.parameters.startKnownH));
+        }
+        if (data.parameters.endKnownH !== undefined && data.parameters.endKnownH !== null) {
+          setEndKnownH(String(data.parameters.endKnownH));
+        }
+        if (data.parameters.toleranceCoef !== undefined && data.parameters.toleranceCoef !== null) {
+          setToleranceCoef(String(data.parameters.toleranceCoef));
+        }
+        if (data.parameters.crsSystem) {
+          setCrsSystem(data.parameters.crsSystem);
+        }
+        if (data.parameters.crsDom !== undefined && data.parameters.crsDom !== null) {
+          setCrsDom(String(data.parameters.crsDom));
+        }
+      } else {
+        if (data.H_start !== undefined && data.H_start !== null) setStartKnownH(String(data.H_start));
+        if (data.H_end !== undefined && data.H_end !== null) setEndKnownH(String(data.H_end));
+        if (data.m_coef !== undefined && data.m_coef !== null) setToleranceCoef(String(data.m_coef));
+        if (data.crsSystem) setCrsSystem(data.crsSystem);
+        if (data.dom !== undefined && data.dom !== null) setCrsDom(String(data.dom));
+      }
+
+      // 3. Dengeleme sonuçlarını aktar (varsa)
+      if (data.adjustmentResults) {
+        setAdjustmentResults(data.adjustmentResults);
+      } else if (data.points && data.H_start !== undefined && data.deltaH_real !== undefined) {
+        setAdjustmentResults(data as AdjustmentResult);
+      }
+
+      showToast(`${validatedPoints.length} nokta ve tüm hesap parametreleri başarıyla yüklendi!`);
+    } catch (err) {
+      console.error(err);
+      alert('Yedek dosyası okunurken hata oluştu. Lütfen geçerli bir .json dosyası seçiniz.');
+    }
+  };
+
   return (
     <div className="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col antialiased">
       {/* Offline Connectivity Indicator */}
@@ -214,6 +314,7 @@ export default function App() {
             onCalculate={handleCalculate}
             onSwitchToMap={() => setActiveTab('map')}
             showToast={showToast}
+            onRestoreBackup={handleRestoreBackup}
           />
         )}
 
@@ -232,11 +333,15 @@ export default function App() {
           <ResultsTab
             results={adjustmentResults}
             onSwitchToData={() => setActiveTab('data')}
+            onBackupJSON={handleBackupJSON}
           />
         )}
 
         {activeTab === 'report' && (
-          <ReportTab results={adjustmentResults} />
+          <ReportTab
+            results={adjustmentResults}
+            onBackupJSON={handleBackupJSON}
+          />
         )}
 
         {activeTab === 'docs' && (

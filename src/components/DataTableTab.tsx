@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { GNSSPoint, CRSSystem } from '../types/gnss';
 import { Sqrt } from './Sqrt';
 import {
@@ -13,7 +13,8 @@ import {
   Globe2,
   FileText,
   X,
-  Check
+  Check,
+  Upload
 } from 'lucide-react';
 
 interface DataTableTabProps {
@@ -32,6 +33,7 @@ interface DataTableTabProps {
   onCalculate: () => void;
   onSwitchToMap: () => void;
   showToast: (msg: string) => void;
+  onRestoreBackup: (data: any) => void;
 }
 
 export const DataTableTab: React.FC<DataTableTabProps> = ({
@@ -49,10 +51,32 @@ export const DataTableTab: React.FC<DataTableTabProps> = ({
   setCrsDom,
   onCalculate,
   onSwitchToMap,
-  showToast
+  showToast,
+  onRestoreBackup,
 }) => {
   const [pasteModalOpen, setPasteModalOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+        onRestoreBackup(parsed);
+      } catch (err) {
+        alert('Dosya okunamadı: Geçersiz JSON biçimi.');
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleAddRow = () => {
     const nextIdx = points.length + 1;
@@ -275,6 +299,22 @@ export const DataTableTab: React.FC<DataTableTabProps> = ({
       {/* Action Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm no-print">
         <div className="flex items-center gap-2 flex-wrap">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".json,application/json"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+            title="Daha önce kaydedilmiş .json hesap yedeğini yükleyin"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Yedek Yükle (.json)</span>
+          </button>
+
           <button
             onClick={() => setPasteModalOpen(true)}
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition-colors border border-slate-700 flex items-center gap-1.5 shadow-sm cursor-pointer"
