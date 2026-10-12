@@ -10,7 +10,7 @@ export const DocsTab: React.FC = () => {
         <div className="border-b border-slate-200 pb-5">
           <div className="flex items-center gap-3 text-sky-600 mb-2">
             <BookOpen className="w-6 h-6" />
-            <h2 className="text-xl font-bold text-slate-900">Teknik Dokümantasyon</h2>
+            <h2 className="text-xl font-bold text-slate-900">Teknik Altyapı</h2>
           </div>
           <p className="text-xs text-slate-600 leading-relaxed">
             Bu sayfa, GNSS Nivelmanı Dengeleme yazılımının temel jeodezik formüllerini, hesap adımlarını ve tolerans standartlarını açıklamaktadır.

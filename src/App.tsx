@@ -6,27 +6,38 @@
 import React, { useState, useEffect } from 'react';
 import { GNSSPoint, AdjustmentResult, CRSSystem } from './types/gnss';
 import { performAdjustment } from './utils/geodesy';
+import { HomeTab } from './components/HomeTab';
 import { DataTableTab } from './components/DataTableTab';
 import { MapRouteTab } from './components/MapRouteTab';
 import { ResultsTab } from './components/ResultsTab';
 import { ReportTab } from './components/ReportTab';
-import { DocsTab } from './components/DocsTab';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import {
+  SavedProject,
+  getSavedProjects,
+  saveProjectToStorage,
+  deleteProjectFromStorage
+} from './utils/projectStorage';
 import {
   Layers,
   Table,
   MapPin,
   BarChart3,
   FileText,
-  BookOpen,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Home
 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'data' | 'map' | 'results' | 'report' | 'docs'>('data');
+  const [activeTab, setActiveTab] = useState<'home' | 'data' | 'map' | 'results' | 'report'>('home');
   const [points, setPoints] = useState<GNSSPoint[]>([]);
+  const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+
+  useEffect(() => {
+    setSavedProjects(getSavedProjects());
+  }, []);
 
   useEffect(() => {
     document.title = 'Nivelman Hesabı';
@@ -76,11 +87,79 @@ export default function App() {
       const domVal = parseInt(crsDom) || 30;
 
       const res = performAdjustment(points, hA, hB, mVal, crsSystem, domVal);
+      if (!res) {
+        setIsLoading(false);
+        alert('Dengeleme hesabı yapılamadı. Lütfen nokta koordinatlarını kontrol ediniz.');
+        return;
+      }
       setAdjustmentResults(res);
       setIsLoading(false);
       setActiveTab('results');
       showToast('Dengeleme hesabı başarıyla tamamlandı!');
+
+      // Otomatik olarak kayıtlı projelere ekle
+      const startId = points[0]?.id || 'A';
+      const endId = points[points.length - 1]?.id || 'B';
+      const autoProject: SavedProject = {
+        id: `proj_${Date.now()}`,
+        name: `${startId} - ${endId} Nivelman Güzergahı`,
+        updatedAt: new Date().toLocaleString('tr-TR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        pointCount: points.length,
+        startPointId: startId,
+        endPointId: endId,
+        totalDistKm: res.totalDistKm,
+        closingErrorMm: res.W_mm,
+        isAccepted: res.isAccepted,
+        data: {
+          points,
+          parameters: {
+            startKnownH,
+            endKnownH,
+            toleranceCoef,
+            crsSystem,
+            crsDom,
+          },
+          adjustmentResults: res,
+        },
+      };
+      saveProjectToStorage(autoProject);
+      setSavedProjects(getSavedProjects());
     }, 600);
+  };
+
+  const handleNewProject = () => {
+    if (points.length > 0) {
+      if (!confirm('Mevcut projedeki veriler temizlenip yeni bir proje başlatılsın mı?')) {
+        return;
+      }
+    }
+    setPoints([]);
+    setStartKnownH('');
+    setEndKnownH('');
+    setAdjustmentResults(null);
+    setActiveTab('data');
+    showToast('Yeni proje başlatıldı. Veri girişine geçildi.');
+  };
+
+  const handleOpenProject = (project: SavedProject) => {
+    handleRestoreBackup(project.data);
+    if (project.data.adjustmentResults) {
+      setActiveTab('results');
+    } else {
+      setActiveTab('data');
+    }
+  };
+
+  const handleDeleteProject = (id: string) => {
+    deleteProjectFromStorage(id);
+    setSavedProjects(getSavedProjects());
+    showToast('Proje silindi.');
   };
 
   const handleApplyRouteToTable = (ordered: GNSSPoint[]) => {
@@ -175,11 +254,48 @@ export default function App() {
       }
 
       // 3. Dengeleme sonuçlarını aktar (varsa)
+      let adjRes: AdjustmentResult | null = null;
       if (data.adjustmentResults) {
+        adjRes = data.adjustmentResults;
         setAdjustmentResults(data.adjustmentResults);
       } else if (data.points && data.H_start !== undefined && data.deltaH_real !== undefined) {
+        adjRes = data as AdjustmentResult;
         setAdjustmentResults(data as AdjustmentResult);
       }
+
+      // 4. Kayıtlı projelere ekle/güncelle
+      const startId = validatedPoints[0]?.id || 'A';
+      const endId = validatedPoints[validatedPoints.length - 1]?.id || 'B';
+      const autoProj: SavedProject = {
+        id: data.id || `proj_${Date.now()}`,
+        name: data.name || `${startId} - ${endId} Nivelman Güzergahı`,
+        updatedAt: new Date().toLocaleString('tr-TR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        pointCount: validatedPoints.length,
+        startPointId: startId,
+        endPointId: endId,
+        totalDistKm: adjRes?.totalDistKm || data.totalDistKm,
+        closingErrorMm: adjRes?.W_mm || data.W_mm,
+        isAccepted: adjRes?.isAccepted !== undefined ? adjRes.isAccepted : data.isAccepted,
+        data: {
+          points: validatedPoints,
+          parameters: {
+            startKnownH: data.parameters?.startKnownH || String(data.H_start || ''),
+            endKnownH: data.parameters?.endKnownH || String(data.H_end || ''),
+            toleranceCoef: data.parameters?.toleranceCoef || String(data.m_coef || '12'),
+            crsSystem: data.parameters?.crsSystem || data.crsSystem || 'itrf3',
+            crsDom: String(data.parameters?.crsDom || data.dom || '30'),
+          },
+          adjustmentResults: adjRes,
+        },
+      };
+      saveProjectToStorage(autoProj);
+      setSavedProjects(getSavedProjects());
 
       showToast(`${validatedPoints.length} nokta ve tüm hesap parametreleri başarıyla yüklendi!`);
     } catch (err) {
@@ -197,7 +313,11 @@ export default function App() {
       <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 no-print sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center space-x-3.5">
+            <div
+              className="flex items-center space-x-3.5 cursor-pointer"
+              onClick={() => setActiveTab('home')}
+              title="Anasayfaya Git"
+            >
               <img
                 src="./icon.svg"
                 alt="Nivelman Hesabı Logo"
@@ -225,6 +345,18 @@ export default function App() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-16">
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-200 mb-6 space-x-2 sm:space-x-4 no-print overflow-x-auto custom-scrollbar">
+          <button
+            onClick={() => setActiveTab('home')}
+            className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
+              activeTab === 'home'
+                ? 'border-sky-600 text-sky-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Home className="w-4 h-4 text-sky-600" />
+            <span>Anasayfa</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('data')}
             className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
@@ -282,21 +414,19 @@ export default function App() {
             <FileText className="w-4 h-4 text-amber-600" />
             <span>Rapor ve Çıktı Al</span>
           </button>
-
-          <button
-            onClick={() => setActiveTab('docs')}
-            className={`px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 flex items-center gap-2 whitespace-nowrap transition cursor-pointer ${
-              activeTab === 'docs'
-                ? 'border-sky-600 text-sky-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <BookOpen className="w-4 h-4 text-indigo-600" />
-            <span>Teknik Dokümantasyon</span>
-          </button>
         </div>
 
         {/* Tab Contents */}
+        {activeTab === 'home' && (
+          <HomeTab
+            onNewProject={handleNewProject}
+            onRestoreBackup={handleRestoreBackup}
+            onOpenProject={handleOpenProject}
+            savedProjects={savedProjects}
+            onDeleteProject={handleDeleteProject}
+          />
+        )}
+
         {activeTab === 'data' && (
           <DataTableTab
             points={points}
@@ -342,10 +472,6 @@ export default function App() {
             results={adjustmentResults}
             onBackupJSON={handleBackupJSON}
           />
-        )}
-
-        {activeTab === 'docs' && (
-          <DocsTab />
         )}
       </main>
 
