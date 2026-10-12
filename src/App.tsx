@@ -17,7 +17,8 @@ import {
   SavedProject,
   getSavedProjects,
   saveProjectToStorage,
-  deleteProjectFromStorage
+  deleteProjectFromStorage,
+  updateProjectNameInStorage
 } from './utils/projectStorage';
 import {
   Layers,
@@ -34,6 +35,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'data' | 'map' | 'results' | 'report'>('home');
   const [points, setPoints] = useState<GNSSPoint[]>([]);
   const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     setSavedProjects(getSavedProjects());
@@ -98,19 +100,26 @@ export default function App() {
       setActiveTab('results');
       showToast('Dengeleme hesabı başarıyla tamamlandı!');
 
-      // Otomatik olarak kayıtlı projelere ekle
+      // Dengelemenin yapıldığı tarih ve saati kaydet
+      const now = new Date();
+      const calculationDate = now.toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
       const startId = points[0]?.id || 'A';
       const endId = points[points.length - 1]?.id || 'B';
+      const projId = currentProjectId || `proj_${Date.now()}`;
+      setCurrentProjectId(projId);
+
       const autoProject: SavedProject = {
-        id: `proj_${Date.now()}`,
+        id: projId,
         name: projectName.trim() || `${startId} - ${endId} Nivelman Güzergahı`,
-        updatedAt: new Date().toLocaleString('tr-TR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
+        calculatedAt: calculationDate,
+        updatedAt: calculationDate,
         pointCount: points.length,
         startPointId: startId,
         endPointId: endId,
@@ -135,11 +144,7 @@ export default function App() {
   };
 
   const handleNewProject = () => {
-    if (points.length > 0) {
-      if (!confirm('Mevcut projedeki veriler temizlenip yeni bir proje başlatılsın mı?')) {
-        return;
-      }
-    }
+    setCurrentProjectId(null);
     setPoints([]);
     setStartKnownH('');
     setEndKnownH('');
@@ -150,17 +155,42 @@ export default function App() {
   };
 
   const handleOpenProject = (project: SavedProject) => {
-    handleRestoreBackup(project.data);
+    // Sadece projeyi açıyoruz - yeni dengeleme yapılmadıkça tekrar tekrar kayıt YAPILMAZ
+    setCurrentProjectId(project.id);
+    setProjectName(project.name);
+    setPoints(project.data.points || []);
+    if (project.data.parameters) {
+      setStartKnownH(project.data.parameters.startKnownH || '');
+      setEndKnownH(project.data.parameters.endKnownH || '');
+      setToleranceCoef(project.data.parameters.toleranceCoef || '12');
+      if (project.data.parameters.crsSystem) setCrsSystem(project.data.parameters.crsSystem);
+      if (project.data.parameters.crsDom) setCrsDom(project.data.parameters.crsDom);
+    }
+    setAdjustmentResults(project.data.adjustmentResults || null);
+
     if (project.data.adjustmentResults) {
       setActiveTab('results');
     } else {
       setActiveTab('data');
     }
+    showToast(`"${project.name}" projesi açıldı.`);
+  };
+
+  const handleRenameProject = (id: string, newName: string) => {
+    updateProjectNameInStorage(id, newName);
+    setSavedProjects(getSavedProjects());
+    if (currentProjectId === id) {
+      setProjectName(newName);
+    }
+    showToast(`Proje ismi güncellendi: "${newName}"`);
   };
 
   const handleDeleteProject = (id: string) => {
     deleteProjectFromStorage(id);
     setSavedProjects(getSavedProjects());
+    if (currentProjectId === id) {
+      setCurrentProjectId(null);
+    }
     showToast('Proje silindi.');
   };
 
@@ -175,10 +205,17 @@ export default function App() {
       return;
     }
 
+    const currentProj = currentProjectId
+      ? savedProjects.find((p) => p.id === currentProjectId)
+      : null;
+    const calcDate = currentProj?.calculatedAt || currentProj?.updatedAt || undefined;
+
     const backupData = {
       app: 'BSR Maps - Nivelman Hesabı',
       version: '1.0',
       exportedAt: new Date().toISOString(),
+      id: currentProjectId || undefined,
+      calculatedAt: calcDate,
       name: projectName.trim() || undefined,
       projectName: projectName.trim() || undefined,
       points: points,
@@ -218,10 +255,9 @@ export default function App() {
       if (!data) throw new Error('Geçersiz dosya');
 
       // 0. Proje İsmini aktar
-      if (data.name) {
-        setProjectName(data.name);
-      } else if (data.projectName) {
-        setProjectName(data.projectName);
+      const importedName = data.name || data.projectName || '';
+      if (importedName) {
+        setProjectName(importedName);
       }
 
       // 1. Nokta listesini çıkar
@@ -275,41 +311,71 @@ export default function App() {
       } else if (data.points && data.H_start !== undefined && data.deltaH_real !== undefined) {
         adjRes = data as AdjustmentResult;
         setAdjustmentResults(data as AdjustmentResult);
+      } else {
+        setAdjustmentResults(null);
       }
 
-      // 4. Kayıtlı projelere ekle/güncelle
-      const startId = validatedPoints[0]?.id || 'A';
-      const endId = validatedPoints[validatedPoints.length - 1]?.id || 'B';
-      const autoProj: SavedProject = {
-        id: data.id || `proj_${Date.now()}`,
-        name: data.name || `${startId} - ${endId} Nivelman Güzergahı`,
-        updatedAt: new Date().toLocaleString('tr-TR', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        pointCount: validatedPoints.length,
-        startPointId: startId,
-        endPointId: endId,
-        totalDistKm: adjRes?.totalDistKm || data.totalDistKm,
-        closingErrorMm: adjRes?.W_mm || data.W_mm,
-        isAccepted: adjRes?.isAccepted !== undefined ? adjRes.isAccepted : data.isAccepted,
-        data: {
-          points: validatedPoints,
-          parameters: {
-            startKnownH: data.parameters?.startKnownH || String(data.H_start || ''),
-            endKnownH: data.parameters?.endKnownH || String(data.H_end || ''),
-            toleranceCoef: data.parameters?.toleranceCoef || String(data.m_coef || '12'),
-            crsSystem: data.parameters?.crsSystem || data.crsSystem || 'itrf3',
-            crsDom: String(data.parameters?.crsDom || data.dom || '30'),
+      // 4. Proje ID'sini ve tarihini belirle
+      const importedId = data.id || `proj_${Date.now()}`;
+      setCurrentProjectId(importedId);
+
+      // Eğer dosyada dengeleme sonuçları varsa ve henüz listede yoksa,
+      // orijinal dengelendiği tarih bilgisiyle ekle (şimdiki saatle ezme!)
+      const alreadyInList = savedProjects.some((p) => p.id === importedId);
+      const originalDate =
+        data.calculatedAt ||
+        data.updatedAt ||
+        (data.exportedAt
+          ? new Date(data.exportedAt).toLocaleString('tr-TR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : new Date().toLocaleString('tr-TR', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }));
+
+      if (!alreadyInList && adjRes) {
+        const startId = validatedPoints[0]?.id || 'A';
+        const endId = validatedPoints[validatedPoints.length - 1]?.id || 'B';
+        const importedProj: SavedProject = {
+          id: importedId,
+          name: importedName || `${startId} - ${endId} Nivelman Güzergahı`,
+          calculatedAt: originalDate,
+          updatedAt: originalDate,
+          pointCount: validatedPoints.length,
+          startPointId: startId,
+          endPointId: endId,
+          totalDistKm: adjRes?.totalDistKm || data.totalDistKm,
+          closingErrorMm: adjRes?.W_mm || data.W_mm,
+          isAccepted: adjRes?.isAccepted !== undefined ? adjRes.isAccepted : data.isAccepted,
+          data: {
+            points: validatedPoints,
+            parameters: {
+              startKnownH: data.parameters?.startKnownH || String(data.H_start || ''),
+              endKnownH: data.parameters?.endKnownH || String(data.H_end || ''),
+              toleranceCoef: data.parameters?.toleranceCoef || String(data.m_coef || '12'),
+              crsSystem: data.parameters?.crsSystem || data.crsSystem || 'itrf3',
+              crsDom: String(data.parameters?.crsDom || data.dom || '30'),
+            },
+            adjustmentResults: adjRes,
           },
-          adjustmentResults: adjRes,
-        },
-      };
-      saveProjectToStorage(autoProj);
-      setSavedProjects(getSavedProjects());
+        };
+        saveProjectToStorage(importedProj);
+        setSavedProjects(getSavedProjects());
+      }
+
+      if (adjRes) {
+        setActiveTab('results');
+      } else {
+        setActiveTab('data');
+      }
 
       showToast(`${validatedPoints.length} nokta ve tüm hesap parametreleri başarıyla yüklendi!`);
     } catch (err) {
@@ -438,6 +504,7 @@ export default function App() {
             onOpenProject={handleOpenProject}
             savedProjects={savedProjects}
             onDeleteProject={handleDeleteProject}
+            onRenameProject={handleRenameProject}
           />
         )}
 

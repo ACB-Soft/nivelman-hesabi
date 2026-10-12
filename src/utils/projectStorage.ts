@@ -3,6 +3,7 @@ import { GNSSPoint, CRSSystem, AdjustmentResult } from '../types/gnss';
 export interface SavedProject {
   id: string;
   name: string;
+  calculatedAt?: string;
   updatedAt: string;
   pointCount: number;
   startPointId: string;
@@ -40,12 +41,37 @@ export function getSavedProjects(): SavedProject[] {
 export function saveProjectToStorage(project: SavedProject): void {
   try {
     const list = getSavedProjects();
-    // Varsa mevcut id'yi veya aynı başlangıç-bitiş ve nokta sayılı son projeyi güncelle
-    const filtered = list.filter((p) => p.id !== project.id);
-    const updated = [project, ...filtered];
+    const existingIndex = list.findIndex((p) => p.id === project.id);
+    let updated: SavedProject[];
+    if (existingIndex >= 0) {
+      // Mevcut projeyi güncelle
+      updated = [...list];
+      updated[existingIndex] = project;
+    } else {
+      // Yeni projeyi başa ekle
+      updated = [project, ...list];
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   } catch (err) {
     console.warn('Proje kaydedilirken hata:', err);
+  }
+}
+
+export function updateProjectNameInStorage(id: string, newName: string): void {
+  try {
+    const list = getSavedProjects();
+    const updated = list.map((p) => {
+      if (p.id === id) {
+        return {
+          ...p,
+          name: newName.trim(),
+        };
+      }
+      return p;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  } catch (err) {
+    console.warn('Proje ismi güncellenirken hata:', err);
   }
 }
 

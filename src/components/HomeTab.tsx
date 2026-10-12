@@ -14,7 +14,9 @@ import {
   Download,
   X,
   ArrowRight,
-  BookOpen
+  BookOpen,
+  Pencil,
+  Check
 } from 'lucide-react';
 
 interface HomeTabProps {
@@ -23,6 +25,7 @@ interface HomeTabProps {
   onOpenProject: (project: SavedProject) => void;
   savedProjects: SavedProject[];
   onDeleteProject: (id: string) => void;
+  onRenameProject: (id: string, newName: string) => void;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -31,10 +34,52 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onOpenProject,
   savedProjects,
   onDeleteProject,
+  onRenameProject,
 }) => {
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState<string>('');
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
+
+  const handleStartRename = (p: SavedProject, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingProjectId(p.id);
+    setEditingName(p.name);
+    setDeletingProjectId(null);
+  };
+
+  const handleSaveRename = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (editingName.trim()) {
+      onRenameProject(id, editingName.trim());
+    }
+    setEditingProjectId(null);
+  };
+
+  const handleCancelRename = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingProjectId(null);
+  };
+
+  const handleStartDelete = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setDeletingProjectId(id);
+    setEditingProjectId(null);
+  };
+
+  const handleConfirmDelete = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    onDeleteProject(id);
+    setDeletingProjectId(null);
+  };
+
+  const handleCancelDelete = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setDeletingProjectId(null);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -193,52 +238,135 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {savedProjects.slice(0, 3).map((p) => (
-              <div
-                key={p.id}
-                className="p-4 rounded-xl border border-slate-200 hover:border-sky-300 bg-slate-50/60 hover:bg-white transition-all shadow-xs flex flex-col justify-between space-y-3"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="text-xs font-bold text-slate-900 truncate" title={p.name}>
-                      {p.name}
-                    </h4>
-                    {p.isAccepted !== undefined && (
-                      <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.2 rounded shrink-0 ${
-                          p.isAccepted
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {p.isAccepted ? 'Kabul' : 'Ret'}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    {p.updatedAt}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-slate-600 pt-2 border-t border-slate-200">
-                  <span className="flex items-center gap-1 font-mono">
-                    <MapPin className="w-3 h-3 text-sky-600" />
-                    <span>{p.pointCount} Nokta</span>
-                  </span>
-                  {p.totalDistKm !== undefined && (
-                    <span className="font-mono text-slate-500">
-                      {p.totalDistKm.toFixed(2)} km
-                    </span>
-                  )}
-                  <button
-                    onClick={() => onOpenProject(p)}
-                    className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-semibold rounded-md transition cursor-pointer"
+            {savedProjects.slice(0, 3).map((p) => {
+              if (deletingProjectId === p.id) {
+                return (
+                  <div
+                    key={p.id}
+                    className="p-4 rounded-xl border border-rose-300 bg-rose-50 shadow-xs flex flex-col justify-between space-y-2.5"
                   >
-                    Aç
-                  </button>
+                    <p className="text-xs font-semibold text-rose-800">
+                      "{p.name}" projesini silmek istiyor musunuz?
+                    </p>
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <button
+                        onClick={handleCancelDelete}
+                        className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-[11px] font-medium rounded-md border border-slate-200 transition cursor-pointer"
+                      >
+                        Vazgeç
+                      </button>
+                      <button
+                        onClick={(e) => handleConfirmDelete(p.id, e)}
+                        className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-md shadow-xs transition cursor-pointer"
+                      >
+                        Evet, Sil
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (editingProjectId === p.id) {
+                return (
+                  <div
+                    key={p.id}
+                    className="p-4 rounded-xl border border-sky-400 bg-sky-50/50 shadow-xs flex flex-col justify-between space-y-2.5"
+                  >
+                    <div>
+                      <label className="text-[10px] font-bold text-sky-800 block mb-1">
+                        Proje İsmini Düzenle
+                      </label>
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(p.id);
+                          if (e.key === 'Escape') handleCancelRename();
+                        }}
+                        className="w-full bg-white border border-sky-400 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-bold focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5 justify-end">
+                      <button
+                        onClick={handleCancelRename}
+                        className="px-2 py-1 text-slate-500 hover:bg-slate-200 text-[11px] font-medium rounded transition cursor-pointer"
+                      >
+                        İptal
+                      </button>
+                      <button
+                        onClick={(e) => handleSaveRename(p.id, e)}
+                        className="px-3 py-1 bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold rounded-md shadow-xs transition cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Kaydet</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
+                <div
+                  key={p.id}
+                  className="p-4 rounded-xl border border-slate-200 hover:border-sky-300 bg-slate-50/60 hover:bg-white transition-all shadow-xs flex flex-col justify-between space-y-3"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-slate-900 truncate" title={p.name}>
+                          {p.name}
+                        </h4>
+                        <button
+                          onClick={(e) => handleStartRename(p, e)}
+                          className="p-1 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded transition shrink-0 cursor-pointer"
+                          title="Proje ismini düzenle"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {p.isAccepted !== undefined && (
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.2 rounded shrink-0 ${
+                            p.isAccepted
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {p.isAccepted ? 'Kabul' : 'Ret'}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 block mt-1">
+                      Dengeleme: <strong className="text-slate-700">{p.calculatedAt || p.updatedAt}</strong>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-600 pt-2 border-t border-slate-200">
+                    <span className="flex items-center gap-1 font-mono text-[10px]">
+                      <MapPin className="w-3 h-3 text-sky-600" />
+                      <span>{p.pointCount} Nokta</span>
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => handleStartDelete(p.id, e)}
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition cursor-pointer"
+                        title="Projeyi sil"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => onOpenProject(p)}
+                        className="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-semibold rounded-md transition cursor-pointer"
+                      >
+                        Aç
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -316,97 +444,182 @@ export const HomeTab: React.FC<HomeTabProps> = ({
                     </p>
                   </div>
                 ) : (
-                  savedProjects.map((p) => (
-                    <div
-                      key={p.id}
-                      className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-all flex items-center justify-between gap-3 shadow-xs"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="text-xs font-bold text-slate-900 truncate">
-                            {p.name}
-                          </h4>
-                          {p.isAccepted !== undefined ? (
-                            <span
-                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                                p.isAccepted
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'bg-rose-100 text-rose-800'
-                              }`}
+                  savedProjects.map((p) => {
+                    if (deletingProjectId === p.id) {
+                      return (
+                        <div
+                          key={p.id}
+                          className="p-3.5 rounded-xl border border-rose-300 bg-rose-50 flex items-center justify-between gap-3 shadow-xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+                            <span className="text-xs font-semibold text-rose-800 truncate">
+                              "{p.name}" projesini kalıcı olarak silmek istiyor musunuz?
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={handleCancelDelete}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-medium rounded-lg border border-slate-200 transition cursor-pointer"
                             >
-                              {p.isAccepted ? (
-                                <>
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  <span>Kabul Edildi</span>
-                                </>
-                              ) : (
-                                <>
-                                  <AlertTriangle className="w-3 h-3 text-rose-600" />
-                                  <span>Tolerans Dışı</span>
-                                </>
-                              )}
+                              Vazgeç
+                            </button>
+                            <button
+                              onClick={(e) => handleConfirmDelete(p.id, e)}
+                              className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-xs transition cursor-pointer"
+                            >
+                              Evet, Sil
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (editingProjectId === p.id) {
+                      return (
+                        <div
+                          key={p.id}
+                          className="p-3.5 rounded-xl border border-sky-400 bg-sky-50/60 flex items-center justify-between gap-3 shadow-xs"
+                        >
+                          <div className="flex-1">
+                            <label className="text-[10px] font-bold text-sky-800 block mb-1">
+                              Yeni Proje İsmi
+                            </label>
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveRename(p.id);
+                                if (e.key === 'Escape') handleCancelRename();
+                              }}
+                              className="w-full bg-white border border-sky-400 rounded-lg px-3 py-1.5 text-xs text-slate-900 font-bold focus:outline-hidden focus:ring-2 focus:ring-sky-500"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0 pt-4">
+                            <button
+                              onClick={handleCancelRename}
+                              className="p-1.5 text-slate-500 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+                              title="İptal"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => handleSaveRename(p.id, e)}
+                              className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer"
+                              title="Kaydet"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Kaydet</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={p.id}
+                        className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-all flex items-center justify-between gap-3 shadow-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-xs font-bold text-slate-900 truncate" title={p.name}>
+                              {p.name}
+                            </h4>
+                            <button
+                              onClick={(e) => handleStartRename(p, e)}
+                              className="p-1 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded transition cursor-pointer"
+                              title="Proje ismini düzenle"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            {p.isAccepted !== undefined ? (
+                              <span
+                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                                  p.isAccepted
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {p.isAccepted ? (
+                                  <>
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    <span>Kabul Edildi</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                    <span>Tolerans Dışı</span>
+                                  </>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                Taslak
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1 flex-wrap">
+                            <span className="flex items-center gap-1 text-slate-600">
+                              <Clock className="w-3.5 h-3.5 text-sky-600" />
+                              <span>Dengeleme: <strong>{p.calculatedAt || p.updatedAt}</strong></span>
                             </span>
-                          ) : (
-                            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                              Taslak
-                            </span>
-                          )}
+                            <span>•</span>
+                            <span className="font-mono">{p.pointCount} Nokta</span>
+                            {p.totalDistKm !== undefined && (
+                              <>
+                                <span>•</span>
+                                <span className="font-mono">{p.totalDistKm.toFixed(3)} km</span>
+                              </>
+                            )}
+                            {p.closingErrorMm !== undefined && (
+                              <>
+                                <span>•</span>
+                                <span className="font-mono">W: {p.closingErrorMm.toFixed(2)} mm</span>
+                              </>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-400" />
-                            <span>{p.updatedAt}</span>
-                          </span>
-                          <span>•</span>
-                          <span className="font-mono">{p.pointCount} Nokta</span>
-                          {p.totalDistKm !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span className="font-mono">{p.totalDistKm.toFixed(3)} km</span>
-                            </>
-                          )}
-                          {p.closingErrorMm !== undefined && (
-                            <>
-                              <span>•</span>
-                              <span className="font-mono">W: {p.closingErrorMm.toFixed(2)} mm</span>
-                            </>
-                          )}
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleDownloadProjectJSON(p)}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            title="Projeyi .json olarak indir"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleStartRename(p, e)}
+                            className="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition cursor-pointer"
+                            title="Proje ismini düzenle"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => handleStartDelete(p.id, e)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                            title="Projeyi sil"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              onOpenProject(p);
+                              setIsLoadModalOpen(false);
+                            }}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Projeyi Aç</span>
+                          </button>
                         </div>
                       </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => handleDownloadProjectJSON(p)}
-                          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition"
-                          title="Projeyi .json olarak indir"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`"${p.name}" projesi silinsin mi?`)) {
-                              onDeleteProject(p.id);
-                            }
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                          title="Projeyi sil"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            onOpenProject(p);
-                            setIsLoadModalOpen(false);
-                          }}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg shadow-xs transition flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Projeyi Aç</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
