@@ -50,6 +50,7 @@ export default function App() {
     }
   }, []);
 
+  const [projectName, setProjectName] = useState<string>('');
   const [startKnownH, setStartKnownH] = useState<string>('');
   const [endKnownH, setEndKnownH] = useState<string>('');
   const [toleranceCoef, setToleranceCoef] = useState<string>('12');
@@ -102,7 +103,7 @@ export default function App() {
       const endId = points[points.length - 1]?.id || 'B';
       const autoProject: SavedProject = {
         id: `proj_${Date.now()}`,
-        name: `${startId} - ${endId} Nivelman Güzergahı`,
+        name: projectName.trim() || `${startId} - ${endId} Nivelman Güzergahı`,
         updatedAt: new Date().toLocaleString('tr-TR', {
           day: '2-digit',
           month: '2-digit',
@@ -142,6 +143,7 @@ export default function App() {
     setPoints([]);
     setStartKnownH('');
     setEndKnownH('');
+    setProjectName('');
     setAdjustmentResults(null);
     setActiveTab('data');
     showToast('Yeni proje başlatıldı. Veri girişine geçildi.');
@@ -177,6 +179,8 @@ export default function App() {
       app: 'BSR Maps - Nivelman Hesabı',
       version: '1.0',
       exportedAt: new Date().toISOString(),
+      name: projectName.trim() || undefined,
+      projectName: projectName.trim() || undefined,
       points: points,
       parameters: {
         startKnownH,
@@ -196,8 +200,11 @@ export default function App() {
     const dateStr = new Date().toISOString().slice(0, 10);
     const startId = points[0]?.id || 'A';
     const endId = points[points.length - 1]?.id || 'B';
+    const safeName = projectName.trim()
+      ? projectName.trim().replace(/\s+/g, '_')
+      : `Nivelman_Yedek_${startId}_${endId}`;
     a.href = url;
-    a.download = `Nivelman_Yedek_${startId}_${endId}_${dateStr}.json`;
+    a.download = `${safeName}_${dateStr}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -209,6 +216,13 @@ export default function App() {
   const handleRestoreBackup = (data: any) => {
     try {
       if (!data) throw new Error('Geçersiz dosya');
+
+      // 0. Proje İsmini aktar
+      if (data.name) {
+        setProjectName(data.name);
+      } else if (data.projectName) {
+        setProjectName(data.projectName);
+      }
 
       // 1. Nokta listesini çıkar
       const pts = Array.isArray(data) ? data : (data.points || []);
@@ -429,6 +443,8 @@ export default function App() {
 
         {activeTab === 'data' && (
           <DataTableTab
+            projectName={projectName}
+            setProjectName={setProjectName}
             points={points}
             setPoints={setPoints}
             startKnownH={startKnownH}
@@ -461,6 +477,7 @@ export default function App() {
 
         {activeTab === 'results' && (
           <ResultsTab
+            projectName={projectName}
             results={adjustmentResults}
             onSwitchToData={() => setActiveTab('data')}
             onBackupJSON={handleBackupJSON}
@@ -469,6 +486,7 @@ export default function App() {
 
         {activeTab === 'report' && (
           <ReportTab
+            projectName={projectName}
             results={adjustmentResults}
             onBackupJSON={handleBackupJSON}
           />

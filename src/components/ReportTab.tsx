@@ -4,11 +4,12 @@ import { Sqrt } from './Sqrt';
 import { Printer, AlertCircle, Download } from 'lucide-react';
 
 interface ReportTabProps {
+  projectName?: string;
   results: AdjustmentResult | null;
   onBackupJSON?: () => void;
 }
 
-export const ReportTab: React.FC<ReportTabProps> = ({ results, onBackupJSON }) => {
+export const ReportTab: React.FC<ReportTabProps> = ({ projectName, results, onBackupJSON }) => {
   if (!results) {
     return (
       <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 shadow-sm space-y-3">
@@ -34,7 +35,9 @@ export const ReportTab: React.FC<ReportTabProps> = ({ results, onBackupJSON }) =
         {/* Action Header */}
         <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 no-print">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Nivelman Dengeleme Raporu</h2>
+            <h2 className="text-lg font-bold text-slate-800">
+              {projectName ? `${projectName} - Dengeleme Raporu` : 'Nivelman Dengeleme Raporu'}
+            </h2>
             <p className="text-xs text-slate-500">
               Yazdırılabilir veya PDF olarak kaydedilebilir resmi jeodezik hesap raporu
             </p>
@@ -68,6 +71,11 @@ export const ReportTab: React.FC<ReportTabProps> = ({ results, onBackupJSON }) =
               NİVELMAN HESABI
             </h1>
             <p className="text-xs text-slate-600 mt-1 font-semibold">GÜZERGAH DENGELEME RAPORU</p>
+            {projectName && (
+              <p className="text-sm font-bold text-sky-900 mt-2 tracking-wide uppercase">
+                Proje: {projectName}
+              </p>
+            )}
             <div className="flex justify-between items-center text-[11px] text-slate-500 mt-4 px-2">
               <span>
                 <strong>Rapor Tarihi:</strong> {today}
@@ -81,6 +89,11 @@ export const ReportTab: React.FC<ReportTabProps> = ({ results, onBackupJSON }) =
           {/* Project Summary Box */}
           <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div className="space-y-1">
+              {projectName && (
+                <p>
+                  <strong>Proje Adı:</strong> {projectName}
+                </p>
+              )}
               <p>
                 <strong>Başlangıç Noktası (A):</strong> {res.points[0]?.id} (H ={' '}
                 {res.H_start.toFixed(4)} m)

@@ -13,12 +13,14 @@ import {
 } from 'lucide-react';
 
 interface ResultsTabProps {
+  projectName?: string;
   results: AdjustmentResult | null;
   onSwitchToData: () => void;
   onBackupJSON?: () => void;
 }
 
 export const ResultsTab: React.FC<ResultsTabProps> = ({
+  projectName,
   results,
   onSwitchToData,
   onBackupJSON,
@@ -45,6 +47,18 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
 
   return (
     <div className="space-y-4">
+      {projectName && (
+        <div className="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Proje:</span>
+            <span className="text-xs font-bold text-slate-800">{projectName}</span>
+          </div>
+          <span className="text-[11px] text-slate-400">
+            {res.points.length} Nokta &bull; {res.totalDistKm.toFixed(3)} km Güzergah
+          </span>
+        </div>
+      )}
+
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
