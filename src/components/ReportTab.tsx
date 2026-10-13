@@ -35,10 +35,10 @@ export const ReportTab: React.FC<ReportTabProps> = ({ projectName, results, onBa
         <div className="flex items-center justify-between border-b-2 border-slate-800 pb-4 no-print">
           <div>
             <h2 className="text-lg font-bold text-slate-800">
-              {projectName ? `${projectName} - Dengeleme Raporu` : 'Nivelman Dengeleme Raporu'}
+              {projectName ? `Dengeleme Raporu` : 'Nivelman Dengeleme Raporu'}
             </h2>
             <p className="text-xs text-slate-500">
-              Yazdırılabilir veya PDF olarak kaydedilebilir resmi jeodezik hesap raporu
+              Yazdırılabilir veya PDF olarak kaydedilebilir
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -67,14 +67,10 @@ export const ReportTab: React.FC<ReportTabProps> = ({ projectName, results, onBa
           {/* Report Header */}
           <div className="text-center border-b border-slate-300 pb-4">
             <h1 className="text-xl font-bold uppercase tracking-wider text-slate-900">
-              NİVELMAN HESABI
+              DAYALI GNSS NİVELMANI HESABI
             </h1>
-            <p className="text-xs text-slate-600 mt-1 font-semibold">GÜZERGAH DENGELEME RAPORU</p>
-            {projectName && (
-              <p className="text-sm font-bold text-sky-900 mt-2 tracking-wide uppercase">
-                Proje: {projectName}
-              </p>
-            )}
+            <p className="text-xs text-slate-600 mt-1 font-semibold">DENGELEME RAPORU</p>
+          
             <div className="flex justify-between items-center text-[11px] text-slate-500 mt-4 px-2">
               <span>
                 <strong>Rapor Tarihi:</strong> {today}
