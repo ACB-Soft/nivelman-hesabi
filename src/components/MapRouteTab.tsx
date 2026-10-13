@@ -12,10 +12,15 @@ import {
   ListOrdered,
   Layers,
   MapPin,
-  Printer
+  Printer,
+  X,
+  FileText,
+  Compass,
+  CheckSquare
 } from 'lucide-react';
 
 interface MapRouteTabProps {
+  projectName?: string;
   points: GNSSPoint[];
   setPoints: React.Dispatch<React.SetStateAction<GNSSPoint[]>>;
   crsSystem: CRSSystem;
@@ -25,6 +30,7 @@ interface MapRouteTabProps {
 }
 
 export const MapRouteTab: React.FC<MapRouteTabProps> = ({
+  projectName,
   points,
   crsSystem,
   crsDom,
@@ -44,6 +50,21 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
   );
   const [scale, setScale] = useState<{ width: number; label: string }>({ width: 75, label: '100 m' });
   const [currentZoom, setCurrentZoom] = useState<number>(6);
+
+  // Baskı Önizleme Modalı Ayarları
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [paperSize, setPaperSize] = useState<'a4' | 'a3'>('a4');
+  const [orientation, setOrientation] = useState<'landscape' | 'portrait'>('landscape');
+  const [showAntet, setShowAntet] = useState(true);
+  const [customTitle, setCustomTitle] = useState(projectName || 'Dayalı GNSS Nivelman Güzergah Planı');
+  const [showNorthArrowScale, setShowNorthArrowScale] = useState(true);
+
+  // Proje adı değiştikçe antet başlığını güncelle
+  useEffect(() => {
+    if (projectName) {
+      setCustomTitle(projectName);
+    }
+  }, [projectName]);
 
   // Initialize selectedRoute with points order if not set
   useEffect(() => {
@@ -421,8 +442,32 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     showToast('Harita güzergah sıralaması tabloya aktarıldı!');
   };
 
-  const handlePrintMap = () => {
-    // 1. Sadece CAD harita ekranını tam ekran yazdırma moduna al
+  // Toplam güzergah mesafesi hesabı (metre)
+  const totalRouteLength = selectedRoute.reduce((acc, pt, idx) => {
+    if (idx === 0) return 0;
+    const prev = selectedRoute[idx - 1];
+    return acc + Math.hypot(pt.x - prev.x, pt.y - prev.y);
+  }, 0);
+
+  const handleExecutePrint = () => {
+    // 1. Varsa eski dinamik @page stilini temizle
+    const oldStyle = document.getElementById('dynamic-print-paper-size');
+    if (oldStyle) oldStyle.remove();
+
+    // 2. Seçilen kağıt boyutu (A4/A3) ve yönlendirmeye (Yatay/Dikey) göre @page enjekte et
+    const styleEl = document.createElement('style');
+    styleEl.id = 'dynamic-print-paper-size';
+    styleEl.textContent = `
+      @media print {
+        @page {
+          size: ${paperSize.toUpperCase()} ${orientation};
+          margin: 6mm;
+        }
+      }
+    `;
+    document.head.appendChild(styleEl);
+
+    // 3. Sadece CAD harita ekranını yazdırma moduna al
     document.body.classList.add('print-map-only');
 
     if (leafletMapRef.current) {
@@ -431,6 +476,8 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
     const cleanup = () => {
       document.body.classList.remove('print-map-only');
+      const dynamicEl = document.getElementById('dynamic-print-paper-size');
+      if (dynamicEl) dynamicEl.remove();
       if (leafletMapRef.current) {
         leafletMapRef.current.invalidateSize();
       }
@@ -439,11 +486,11 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
     window.addEventListener('afterprint', cleanup);
 
-    // Kısa gecikmeyle DOM ve Leaflet boyutlarının netleşmesini bekle ve yazdır
+    // 4. Kısa gecikmeyle DOM ve Leaflet boyutlarının netleşmesini bekle ve yazdır
     setTimeout(() => {
       window.print();
       setTimeout(cleanup, 2500);
-    }, 150);
+    }, 180);
   };
 
   return (
@@ -533,9 +580,9 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
           </button>
 
           <button
-            onClick={handlePrintMap}
+            onClick={() => setIsPrintModalOpen(true)}
             className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer no-print"
-            title="Yalnızca CAD harita güzergah ekranını (kuzey oku, ölçek ve altlık ile) yazdırın veya PDF olarak kaydedin"
+            title="A4 / A3 ebadında antetli ve ölçekli harita baskı önizleme ekranını açın"
           >
             <Printer className="w-3.5 h-3.5 text-sky-400" />
             <span>Haritayı Yazdır / PDF</span>
@@ -572,37 +619,59 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         <div className="lg:col-span-3 h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0 map-container-print">
           <div ref={mapContainerRef} className="w-full h-full" />
 
-          {/* Geodetic North Arrow & Dynamic Linear Scale Bar (Çizgi Ölçek) */}
-          <div
-            className="absolute bottom-4 left-3 z-400 bg-white/95 backdrop-blur-xs text-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-300 shadow-md flex items-center gap-3 pointer-events-none select-none text-xs"
-            title="Kuzey Yönü ve Çizgi Ölçek"
-          >
-            {/* North Arrow (Kuzey Oku) - Solid Black */}
-            <div className="flex items-center gap-1 font-bold text-[11px] pr-2.5 border-r border-slate-300">
-              <span className="text-slate-950 font-black text-xs leading-none">▲</span>
-              <span className="text-slate-950 tracking-wider">K</span>
+          {/* Antet Header (Visible in print mode when showAntet is true) */}
+          {showAntet && (
+            <div className="absolute top-5 left-5 right-5 z-[1000] bg-white/95 backdrop-blur-xs text-slate-900 px-5 py-3 rounded-xl border-2 border-slate-900 shadow-md hidden print-antet-visible items-center justify-between">
+              <div>
+                <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-wide text-slate-900">
+                  {customTitle || projectName || 'Dayalı GNSS Nivelman Güzergah Planı'}
+                </h2>
+                <div className="flex items-center gap-4 text-[11px] text-slate-600 mt-0.5">
+                  <span><strong>Projeksiyon:</strong> {crsSystem.toUpperCase()} ({crsDom}°)</span>
+                  <span><strong>Hat Uzunluğu:</strong> {totalRouteLength.toFixed(2)} m ({(totalRouteLength / 1000).toFixed(3)} km)</span>
+                  <span><strong>Nokta Sayısı:</strong> {selectedRoute.length} Adet</span>
+                </div>
+              </div>
+              <div className="text-right text-[10px] text-slate-500">
+                <span className="font-bold text-slate-800 block text-[11px]">BSR Maps - Nivelman Hesabı</span>
+                <span>Tarih: {new Date().toLocaleDateString('tr-TR')} {new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
             </div>
+          )}
 
-            {/* Graphic Linear Scale Bar (Çizgi Ölçek - 4 Bölümlü) */}
-            <div className="flex flex-col items-center">
-              <div
-                className="flex justify-between text-[9px] font-mono font-bold text-slate-800 leading-none mb-1"
-                style={{ width: `${scale.width}px` }}
-              >
-                <span>0</span>
-                <span>{scale.label}</span>
+          {/* Geodetic North Arrow & Dynamic Linear Scale Bar (Çizgi Ölçek) */}
+          {showNorthArrowScale && (
+            <div
+              className="absolute bottom-6 left-5 z-[1000] bg-white/95 backdrop-blur-xs text-slate-800 px-3 py-2 rounded-lg border border-slate-300 shadow-md flex items-center gap-3 pointer-events-none select-none text-xs"
+              title="Kuzey Yönü ve Çizgi Ölçek"
+            >
+              {/* North Arrow (Kuzey Oku) - Solid Black */}
+              <div className="flex items-center gap-1 font-bold text-[11px] pr-2.5 border-r border-slate-300">
+                <span className="text-slate-950 font-black text-xs leading-none">▲</span>
+                <span className="text-slate-950 tracking-wider">K</span>
               </div>
-              <div
-                className="h-1.5 border border-slate-900 relative flex overflow-hidden shadow-2xs"
-                style={{ width: `${scale.width}px` }}
-              >
-                <div className="w-1/4 h-full bg-slate-950" />
-                <div className="w-1/4 h-full bg-white border-l border-slate-900" />
-                <div className="w-1/4 h-full bg-slate-950 border-l border-slate-900" />
-                <div className="w-1/4 h-full bg-white border-l border-slate-900" />
+
+              {/* Graphic Linear Scale Bar (Çizgi Ölçek - 4 Bölümlü) */}
+              <div className="flex flex-col items-center">
+                <div
+                  className="flex justify-between text-[9px] font-mono font-bold text-slate-800 leading-none mb-1"
+                  style={{ width: `${scale.width}px` }}
+                >
+                  <span>0</span>
+                  <span>{scale.label}</span>
+                </div>
+                <div
+                  className="h-1.5 border border-slate-900 relative flex overflow-hidden shadow-2xs"
+                  style={{ width: `${scale.width}px` }}
+                >
+                  <div className="w-1/4 h-full bg-slate-950" />
+                  <div className="w-1/4 h-full bg-white border-l border-slate-900" />
+                  <div className="w-1/4 h-full bg-slate-950 border-l border-slate-900" />
+                  <div className="w-1/4 h-full bg-white border-l border-slate-900" />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Selected Sequence Panel */}
@@ -658,6 +727,322 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Baskı ve Çıktı Önizleme Modalı */}
+      {isPrintModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 no-print animate-in fade-in">
+          <div className="bg-slate-900 text-white w-full max-w-6xl rounded-2xl shadow-2xl border border-slate-700/80 overflow-hidden flex flex-col max-h-[94vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800 bg-slate-900/90">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                  <Printer className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-white">
+                    Harita Baskı ve Çıktı Önizleme
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    A4 / A3 ebadında, ölçekli ve antetli teknik güzergah çıktısı
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPrintModalOpen(false)}
+                className="w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center justify-center cursor-pointer"
+                title="Kapat"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content: 2 Columns (Settings & Live Sheet Preview) */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-1 lg:grid-cols-12 gap-5 p-4 sm:p-6 bg-slate-900/50">
+              {/* Left Column: Settings (5 cols) */}
+              <div className="lg:col-span-5 space-y-4">
+                {/* 1. Kağıt Boyutu */}
+                <div className="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                    Kağıt Boyutu
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaperSize('a4')}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center cursor-pointer ${
+                        paperSize === 'a4'
+                          ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-sm">A4</span>
+                      <span className="text-[10px] opacity-80">210 × 297 mm</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaperSize('a3')}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center cursor-pointer ${
+                        paperSize === 'a3'
+                          ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-sm">A3</span>
+                      <span className="text-[10px] opacity-80">297 × 420 mm</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Sayfa Yönü */}
+                <div className="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                    Sayfa Yönü (Oryantasyon)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOrientation('landscape')}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center cursor-pointer ${
+                        orientation === 'landscape'
+                          ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <span>Yatay (Landscape)</span>
+                      <span className="text-[10px] opacity-80">Harita için standart</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setOrientation('portrait')}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition flex flex-col items-center justify-center cursor-pointer ${
+                        orientation === 'portrait'
+                          ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700 hover:text-white'
+                      }`}
+                    >
+                      <span>Dikey (Portrait)</span>
+                      <span className="text-[10px] opacity-80">Düşey güzergah</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Antet & Başlık */}
+                <div className="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 space-y-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300 select-none">
+                    <input
+                      type="checkbox"
+                      checked={showAntet}
+                      onChange={(e) => setShowAntet(e.target.checked)}
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 bg-slate-700 border-slate-600 cursor-pointer"
+                    />
+                    <span>Teknik Antet ve Proje Başlığını Ekle</span>
+                  </label>
+
+                  {showAntet && (
+                    <div className="pt-1">
+                      <label className="text-[11px] text-slate-400 block mb-1">
+                        Çıktı Başlığı / Proje Adı:
+                      </label>
+                      <input
+                        type="text"
+                        value={customTitle}
+                        onChange={(e) => setCustomTitle(e.target.value)}
+                        placeholder="Örn: Dayalı GNSS Nivelman Güzergah Planı"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-sky-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Kuzey Oku ve Çizgi Ölçek Ayarı */}
+                <div className="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-300 select-none">
+                    <input
+                      type="checkbox"
+                      checked={showNorthArrowScale}
+                      onChange={(e) => setShowNorthArrowScale(e.target.checked)}
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 bg-slate-700 border-slate-600 cursor-pointer"
+                    />
+                    <span>Kuzey Oku ve Çizgi Ölçeği Ekle</span>
+                  </label>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Kuzey yönü ve dinamik metrik ölçek çubuğu harita sınırları içinde, en üst katmanda (z-index: 1000) yer alır.
+                  </p>
+                </div>
+
+                {/* 5. Altlık Harita */}
+                <div className="bg-slate-800/80 rounded-xl p-3.5 border border-slate-700/60 space-y-2">
+                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider block">
+                    Baskı Altlığı
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setMapType('osm')}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        mapType === 'osm'
+                          ? 'bg-sky-600 text-white font-bold'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      Sokak
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapType('hybrid')}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        mapType === 'hybrid'
+                          ? 'bg-sky-600 text-white font-bold'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      Uydu
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMapType('grid')}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                        mapType === 'grid'
+                          ? 'bg-emerald-600 text-white font-bold'
+                          : 'bg-slate-700/60 text-slate-300 hover:bg-slate-700'
+                      }`}
+                    >
+                      Çevrimdışı
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="pt-2 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleExecutePrint}
+                    className="flex-1 py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Yazdır / PDF Olarak Kaydet</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPrintModalOpen(false)}
+                    className="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition cursor-pointer"
+                  >
+                    Vazgeç
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Live Sheet Preview (7 cols) */}
+              <div className="lg:col-span-7 flex flex-col items-center justify-center bg-slate-950/60 rounded-xl p-4 sm:p-6 border border-slate-800">
+                <div className="text-[11px] text-slate-400 mb-2.5 font-mono flex items-center gap-2">
+                  <span>Önizleme Kağıdı:</span>
+                  <strong className="text-white uppercase">{paperSize} - {orientation === 'landscape' ? 'Yatay' : 'Dikey'}</strong>
+                </div>
+
+                {/* Scaled Realistic Sheet Representation */}
+                <div
+                  className={`bg-white text-slate-900 rounded-xs shadow-2xl p-4 sm:p-5 flex flex-col justify-between border-2 border-slate-800 relative transition-all duration-300 ${
+                    orientation === 'landscape'
+                      ? 'w-full max-w-[540px] aspect-[297/210]'
+                      : 'w-full max-w-[390px] aspect-[210/297]'
+                  }`}
+                >
+                  {/* Outer CAD Surveyor Frame Line */}
+                  <div className="absolute inset-1.5 border border-slate-400 pointer-events-none" />
+
+                  {/* Top Antet Preview */}
+                  {showAntet ? (
+                    <div className="bg-slate-50 border border-slate-300 p-2 sm:p-2.5 rounded-sm mb-2 flex items-center justify-between text-left">
+                      <div>
+                        <h4 className="text-[11px] sm:text-xs font-extrabold uppercase text-slate-900 leading-tight">
+                          {customTitle || projectName || 'Dayalı GNSS Nivelman Güzergah Planı'}
+                        </h4>
+                        <div className="text-[9px] text-slate-600 mt-0.5 space-x-2">
+                          <span><strong>Sistem:</strong> {crsSystem.toUpperCase()} ({crsDom}°)</span>
+                          <span><strong>Mesafe:</strong> {totalRouteLength.toFixed(1)} m</span>
+                          <span><strong>Nokta:</strong> {selectedRoute.length} adet</span>
+                        </div>
+                      </div>
+                      <div className="text-right text-[8px] text-slate-500 font-mono">
+                        <div>BSR Maps Planı</div>
+                        <div>{new Date().toLocaleDateString('tr-TR')}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-1" />
+                  )}
+
+                  {/* Route Canvas Simulation */}
+                  <div className="flex-1 bg-slate-100 rounded-sm border border-slate-300 relative overflow-hidden flex items-center justify-center">
+                    {/* Background CAD Grid */}
+                    <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:16px_16px]" />
+
+                    {/* Route Line Schematic */}
+                    <svg className="w-full h-full absolute inset-0 pointer-events-none">
+                      {selectedRoute.length >= 2 && (
+                        <polyline
+                          points={selectedRoute
+                            .map((_, i, arr) => {
+                              const x = 20 + (i / (arr.length - 1)) * 60;
+                              const y = 30 + Math.sin(i * 1.5) * 25 + 20;
+                              return `${x}%,${y}%`;
+                            })
+                            .join(' ')}
+                          fill="none"
+                          stroke="#ff0000"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      )}
+                    </svg>
+
+                    {/* Points badges preview */}
+                    <div className="absolute inset-x-4 inset-y-6 flex items-center justify-between pointer-events-none z-10">
+                      {selectedRoute.length > 0 && (
+                        <div className="bg-emerald-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow">
+                          A: {selectedRoute[0]?.id} (Başlangıç)
+                        </div>
+                      )}
+                      {selectedRoute.length > 2 && (
+                        <div className="bg-sky-700 text-white text-[8px] px-1 py-0.5 rounded shadow">
+                          {selectedRoute[1]?.id}
+                        </div>
+                      )}
+                      {selectedRoute.length > 1 && (
+                        <div className="bg-rose-600 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow">
+                          B: {selectedRoute[selectedRoute.length - 1]?.id} (Bitiş)
+                        </div>
+                      )}
+                    </div>
+
+                    {/* North Arrow and Scale Bar Preview */}
+                    {showNorthArrowScale && (
+                      <div className="absolute bottom-2 left-2 bg-white/95 text-slate-900 border border-slate-300 px-2 py-1 rounded-sm shadow-xs flex items-center gap-2 text-[8px]">
+                        <span className="font-bold border-r border-slate-300 pr-1.5">▲ K</span>
+                        <div className="flex flex-col items-center">
+                          <span className="text-[7px] font-mono leading-none mb-0.5">{scale.label}</span>
+                          <div className="w-10 h-1 bg-slate-900 flex">
+                            <div className="w-1/2 bg-white border border-slate-900" />
+                            <div className="w-1/2 bg-slate-900" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sheet Footer Legend */}
+                  <div className="flex items-center justify-between text-[8px] text-slate-500 font-mono mt-2 pt-1 border-t border-slate-200">
+                    <span>Ölçek: Dinamik (Metrik)</span>
+                    <span>Standart: BÖHHBÜY</span>
+                    <span className="uppercase">{paperSize} / {orientation}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

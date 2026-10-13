@@ -580,6 +580,7 @@ export default function App() {
 
         {activeTab === 'map' && (
           <MapRouteTab
+            projectName={projectName}
             points={points}
             setPoints={setPoints}
             crsSystem={crsSystem}

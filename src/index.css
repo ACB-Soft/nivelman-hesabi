@@ -146,4 +146,9 @@
   body.print-map-only .leaflet-control-attribution {
     display: none !important;
   }
+
+  /* Show print antet header during print */
+  body.print-map-only .print-antet-visible {
+    display: flex !important;
+  }
 }
