@@ -259,7 +259,7 @@ export function exportAdjustmentToKML(res: AdjustmentResult) {
 
     <Style id="routeLineStyle">
       <LineStyle>
-        <color>ff0284c7</color>
+        <color>ff0000ff</color>
         <width>4</width>
       </LineStyle>
     </Style>

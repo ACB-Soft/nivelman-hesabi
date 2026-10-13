@@ -103,7 +103,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
       const markersGroup = L.layerGroup().addTo(map);
       const line = L.polyline([], {
-        color: '#0284c7',
+        color: '#ff0000',
         weight: 4,
         opacity: 0.85,
         dashArray: undefined,
@@ -278,7 +278,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       // 13: 11.5px
       // 15: 13px
       // >= 17: 15px - 16px (large and prominent!)
-      const fontSize = Math.max(9, Math.min(16, +(7.5 + (currentZoom - 6) * 0.7).toFixed(1)));
+      const fontSize = Math.max(8, Math.min(14, +(7 + (currentZoom - 6) * 0.7).toFixed(1)));
       const paddingY = Math.max(1, Math.min(4, Math.round((currentZoom - 8) * 0.3)));
       const paddingX = Math.max(4, Math.min(10, Math.round((currentZoom - 6) * 0.5)));
       const borderWidth = currentZoom >= 14 ? 2 : 1.5;
@@ -313,7 +313,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
       marker.bindPopup(`
         <div style="font-family:sans-serif;font-size:12px;line-height:1.4">
-          <b style="color:#0284c7;font-size:13px">${pt.id}</b><br/>
+          <b style="color:#ff0000;font-size:13px">${pt.id}</b><br/>
           <b>Sağa (Y):</b> ${pt.y.toFixed(4)} m<br/>
           <b>Yukarı (X):</b> ${pt.x.toFixed(4)} m<br/>
           <b>Elipsoid (h):</b> ${pt.h.toFixed(4)} m<br/>
@@ -523,7 +523,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       {/* Map & Sequence Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Map Container */}
-        <div className="lg:col-span-3 h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0">
+        <div className="lg:col-span-3 h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0 map-container-print">
           <div ref={mapContainerRef} className="w-full h-full" />
 
           {/* Geodetic North Arrow & Dynamic Linear Scale Bar (Çizgi Ölçek) */}
@@ -566,7 +566,12 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
               <ListOrdered className="w-4 h-4 text-sky-600" />
               <span>Seçim Sırası</span>
             </span>
-            <span className="text-[10px] text-slate-400 font-normal">Sırasıyla</span>
+            <button 
+              onClick={() => window.print()}
+              className="flex items-center gap-1 bg-sky-600 text-white px-2 py-1 rounded hover:bg-sky-700 transition-colors no-print"
+            >
+              <span className="text-[10px]">Yazdır/PDF</span>
+            </button>
           </h4>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
