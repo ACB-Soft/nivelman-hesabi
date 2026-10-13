@@ -152,10 +152,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-sky-950 text-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-700/60 relative overflow-hidden">
         <div className="relative z-10 max-w-2xl space-y-4">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
-            Nivelman Hesabı Platformuna Hoş Geldiniz
+            Nivelman Hesabı Uygulamasına Hoş Geldiniz
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed">
-            İki röper noktası arasındaki GNSS veya geometrik nivelman güzergahlarını standartlara uygun olarak dengeleyin, kapanma hatalarını hesaplayın, harita üzerinde güzergahınızı inceleyin ve resmi raporlar oluşturun.
+            Koordinatı ve yüksekliği bilinen iki röper noktası arasındaki GNSS nivelman güzergahlarını standartlara uygun olarak dengeleyin, kapanma hatalarını hesaplayın, harita üzerinde güzergahınızı inceleyin ve resmi raporlar oluşturun.
           </p>
           <div className="pt-1">
             <button
