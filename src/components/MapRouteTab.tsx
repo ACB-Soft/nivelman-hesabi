@@ -11,7 +11,8 @@ import {
   Info,
   ListOrdered,
   Layers,
-  MapPin
+  MapPin,
+  Printer
 } from 'lucide-react';
 
 interface MapRouteTabProps {
@@ -273,14 +274,15 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
       // Dynamic zoom-responsive font size and padding
       // Zoom levels:
-      // <= 10: 8px (very compact)
-      // 12: 9px
-      // 14: 10px
-      // 16+: 12px
-      const fontSize = Math.max(7, Math.min(12, +(6 + (currentZoom - 6) * 0.4).toFixed(1)));
-      const paddingY = Math.max(0, Math.min(2, Math.round((currentZoom - 10) * 0.2)));
-      const paddingX = Math.max(2, Math.min(6, Math.round((currentZoom - 8) * 0.3)));
-      const borderWidth = currentZoom >= 14 ? 1 : 0.5;
+      // <= 8: 9px (compact)
+      // 10: 10px
+      // 13: 11.5px
+      // 15: 13px
+      // >= 17: 15px - 16px (large and prominent!)
+      const fontSize = Math.max(9, Math.min(16, +(7.5 + (currentZoom - 6) * 0.7).toFixed(1)));
+      const paddingY = Math.max(1, Math.min(4, Math.round((currentZoom - 8) * 0.3)));
+      const paddingX = Math.max(4, Math.min(10, Math.round((currentZoom - 6) * 0.5)));
+      const borderWidth = currentZoom >= 14 ? 2 : 1.5;
 
       let badgeClass = 'leaflet-marker-badge';
       let labelText = pt.id;
@@ -321,6 +323,17 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       `);
 
       markersGroup.addLayer(marker);
+
+      // Add a small black circle marker on the route
+      const circle = L.circleMarker(latLng, {
+        radius: 3,
+        fillColor: '#000000',
+        color: '#000000',
+        weight: 1,
+        opacity: 1,
+        fillOpacity: 1
+      });
+      markersGroup.addLayer(circle);
     });
 
     if (selectedRoute.length > 0) {
@@ -408,10 +421,35 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     showToast('Harita güzergah sıralaması tabloya aktarıldı!');
   };
 
+  const handlePrintMap = () => {
+    // 1. Sadece CAD harita ekranını tam ekran yazdırma moduna al
+    document.body.classList.add('print-map-only');
+
+    if (leafletMapRef.current) {
+      leafletMapRef.current.invalidateSize();
+    }
+
+    const cleanup = () => {
+      document.body.classList.remove('print-map-only');
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize();
+      }
+      window.removeEventListener('afterprint', cleanup);
+    };
+
+    window.addEventListener('afterprint', cleanup);
+
+    // Kısa gecikmeyle DOM ve Leaflet boyutlarının netleşmesini bekle ve yazdır
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 2500);
+    }, 150);
+  };
+
   return (
     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
       {/* Top Toolbar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3 no-print">
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
           <button
             onClick={() => setMapType('osm')}
@@ -493,11 +531,20 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             <Check className="w-3.5 h-3.5" />
             <span>Güzergahı Tabloya Aktar</span>
           </button>
+
+          <button
+            onClick={handlePrintMap}
+            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer no-print"
+            title="Yalnızca CAD harita güzergah ekranını (kuzey oku, ölçek ve altlık ile) yazdırın veya PDF olarak kaydedin"
+          >
+            <Printer className="w-3.5 h-3.5 text-sky-400" />
+            <span>Haritayı Yazdır / PDF</span>
+          </button>
         </div>
       </div>
 
       {/* Info Status Banner */}
-      <div className="bg-slate-100 text-slate-700 px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between font-medium">
+      <div className="bg-slate-100 text-slate-700 px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between font-medium no-print">
         <span className="flex items-center gap-2">
           <Info className="w-4 h-4 text-sky-600 shrink-0" />
           <span>
@@ -559,18 +606,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         </div>
 
         {/* Selected Sequence Panel */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col h-[520px]">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col h-[520px] no-print">
           <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <ListOrdered className="w-4 h-4 text-sky-600" />
               <span>Seçim Sırası</span>
             </span>
-            <button 
-              onClick={() => window.print()}
-              className="flex items-center gap-1 bg-sky-600 text-white px-2 py-1 rounded hover:bg-sky-700 transition-colors no-print"
-            >
-              <span className="text-[10px]">Yazdır/PDF</span>
-            </button>
+            <span className="text-[10px] text-slate-400 font-normal">Sırasıyla</span>
           </h4>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
