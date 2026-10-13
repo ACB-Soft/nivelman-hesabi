@@ -101,8 +101,7 @@ export const ReportTab: React.FC<ReportTabProps> = ({ projectName, results, onBa
                 <strong>Toplam Nokta Sayısı:</strong> {res.points.length} adet
               </p>
               <p>
-                <strong>Toplam Güzergah Uzunluğu:</strong> {res.totalDist.toFixed(2)} m (
-                {res.totalDistKm.toFixed(3)} km)
+                <strong>Toplam Güzergah Uzunluğu:</strong> {res.totalDistKm.toFixed(3)} km
               </p>
             </div>
             <div className="space-y-1">
