@@ -273,15 +273,14 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
       // Dynamic zoom-responsive font size and padding
       // Zoom levels:
-      // <= 8: 9px (compact)
-      // 10: 10px
-      // 13: 11.5px
-      // 15: 13px
-      // >= 17: 15px - 16px (large and prominent!)
-      const fontSize = Math.max(8, Math.min(14, +(7 + (currentZoom - 6) * 0.7).toFixed(1)));
-      const paddingY = Math.max(1, Math.min(4, Math.round((currentZoom - 8) * 0.3)));
-      const paddingX = Math.max(4, Math.min(10, Math.round((currentZoom - 6) * 0.5)));
-      const borderWidth = currentZoom >= 14 ? 2 : 1.5;
+      // <= 10: 8px (very compact)
+      // 12: 9px
+      // 14: 10px
+      // 16+: 12px
+      const fontSize = Math.max(7, Math.min(12, +(6 + (currentZoom - 6) * 0.4).toFixed(1)));
+      const paddingY = Math.max(0, Math.min(2, Math.round((currentZoom - 10) * 0.2)));
+      const paddingX = Math.max(2, Math.min(6, Math.round((currentZoom - 8) * 0.3)));
+      const borderWidth = currentZoom >= 14 ? 1 : 0.5;
 
       let badgeClass = 'leaflet-marker-badge';
       let labelText = pt.id;
