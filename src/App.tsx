@@ -469,7 +469,7 @@ export default function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-16">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-28">
         {/* Navigation Tabs */}
         <div className="flex border-b border-slate-200 mb-6 space-x-2 sm:space-x-4 no-print overflow-x-auto custom-scrollbar">
           <button
@@ -580,7 +580,6 @@ export default function App() {
 
         {activeTab === 'map' && (
           <MapRouteTab
-            projectName={projectName}
             points={points}
             setPoints={setPoints}
             crsSystem={crsSystem}
@@ -609,7 +608,7 @@ export default function App() {
       </main>
 
       {/* Fixed Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xs text-slate-400 text-xs py-2.5 text-center border-t border-slate-800 shadow-md no-print">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xs text-slate-400 text-xs py-2.5 text-center border-t border-slate-800 shadow-md no-print">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <span>BSR Maps - Nivelman Hesabı v1.0</span>
         </div>
