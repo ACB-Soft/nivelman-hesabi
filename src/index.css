@@ -90,7 +90,7 @@
     print-color-adjust: exact !important;
   }
 
-  /* Specific rules when printing ONLY the CAD Map */
+  /* Specific rules when printing ONLY the CAD Map / Print Sheet */
   body.print-map-only {
     margin: 0 !important;
     padding: 0 !important;
@@ -102,28 +102,35 @@
   }
 
   body.print-map-only .map-container-print,
-  body.print-map-only .map-container-print * {
+  body.print-map-only .map-container-print *,
+  body.print-map-only .map-print-target,
+  body.print-map-only .map-print-target * {
     visibility: visible !important;
   }
 
-  body.print-map-only .map-container-print {
-    position: absolute !important;
+  body.print-map-only .map-container-print,
+  body.print-map-only .map-print-target {
+    position: fixed !important;
     left: 0 !important;
-    right: 0 !important;
     top: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    aspect-ratio: var(--print-aspect-ratio, 16 / 10) !important;
-    max-height: 94vh !important;
-    margin: 0 auto !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
     padding: 0 !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
+    border: none !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
     z-index: 999999 !important;
     overflow: hidden !important;
-    background: #f8fafc !important;
+    background: #ffffff !important;
     page-break-inside: avoid !important;
+  }
+
+  body.print-map-only .map-print-target {
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   /* Ensure Leaflet internal panes and canvas/tiles render cleanly */
@@ -143,9 +150,12 @@
     visibility: visible !important;
   }
 
-  /* Hide Leaflet interactive zoom buttons & attribution during printing */
+  /* Hide Leaflet interactive zoom buttons, center handle, frame badges, and interactive controls during printing */
   body.print-map-only .leaflet-control-zoom,
-  body.print-map-only .leaflet-control-attribution {
+  body.print-map-only .leaflet-control-attribution,
+  body.print-map-only .print-frame-badge-icon,
+  body.print-map-only .print-frame-center-handle,
+  body.print-map-only .no-print-preview {
     display: none !important;
   }
 }

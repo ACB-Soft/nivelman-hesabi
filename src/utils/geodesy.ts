@@ -287,3 +287,116 @@ ${placemarksXML}
   link.click();
   document.body.removeChild(link);
 }
+
+export function exportRoutePointsToKML(
+  points: GNSSPoint[],
+  crsSystem: CRSSystem,
+  crsDom: string,
+  projectName?: string
+) {
+  if (!points || points.length === 0) return;
+
+  const ptsWithCoords = points.map((p) => {
+    const wgs = convertPointToWGS84(p, crsSystem, crsDom);
+    return {
+      ...p,
+      lat: wgs.lat,
+      lon: wgs.lon,
+      calcH: p.h - p.n,
+    };
+  });
+
+  const lineCoords = ptsWithCoords
+    .filter((p) => p.lat !== 0 || p.lon !== 0)
+    .map((p) => `${(p.lon || 0).toFixed(7)},${(p.lat || 0).toFixed(7)},${p.calcH.toFixed(3)}`)
+    .join('\n          ');
+
+  let placemarksXML = '';
+  ptsWithCoords.forEach((pt, idx) => {
+    const isStart = idx === 0;
+    const isEnd = idx === ptsWithCoords.length - 1;
+    let styleId = 'intermediatePointStyle';
+    let pointType = 'Ara Nokta';
+
+    if (isStart) {
+      styleId = 'startPointStyle';
+      pointType = 'Başlangıç Röperi (A)';
+    } else if (isEnd) {
+      styleId = 'endPointStyle';
+      pointType = 'Bitiş Röperi (B)';
+    }
+
+    placemarksXML += `
+    <Placemark>
+      <name>${pt.id}</name>
+      <description><![CDATA[<b>Tip:</b> ${pointType}<br><b>Yaklaşık Kot (H):</b> ${pt.calcH.toFixed(4)} m<br><b>Elipsoid Yük. (h):</b> ${pt.h.toFixed(4)} m<br><b>Jeoit Yük. (N):</b> ${pt.n.toFixed(3)} m<br><b>Metrik Y (Sağa):</b> ${pt.y.toFixed(3)} m<br><b>Metrik X (Yukarı):</b> ${pt.x.toFixed(3)} m]]></description>
+      <styleUrl>#${styleId}</styleUrl>
+      <Point>
+        <coordinates>${(pt.lon || 0).toFixed(7)},${(pt.lat || 0).toFixed(7)},${pt.calcH.toFixed(3)}</coordinates>
+      </Point>
+    </Placemark>`;
+  });
+
+  const kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${projectName ? `${projectName} - Güzergah` : 'GNSS Nivelman Güzergahı'}</name>
+    <description>GNSS Nivelman Güzergah KML Çıktısı</description>
+
+    <Style id="startPointStyle">
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>https://maps.google.com/mapfiles/kml/pushpin/grn-pushpin.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+
+    <Style id="intermediatePointStyle">
+      <IconStyle>
+        <scale>1.0</scale>
+        <Icon>
+          <href>https://maps.google.com/mapfiles/kml/pushpin/blue-pushpin.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+
+    <Style id="endPointStyle">
+      <IconStyle>
+        <scale>1.3</scale>
+        <Icon>
+          <href>https://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+
+    <Style id="routeLineStyle">
+      <LineStyle>
+        <color>ff0000ff</color>
+        <width>4</width>
+      </LineStyle>
+    </Style>
+
+    <Placemark>
+      <name>Nivelman Güzergah Hattı</name>
+      <styleUrl>#routeLineStyle</styleUrl>
+      <LineString>
+        <tessellate>1</tessellate>
+        <altitudeMode>clampToGround</altitudeMode>
+        <coordinates>
+          ${lineCoords}
+        </coordinates>
+      </LineString>
+    </Placemark>
+${placemarksXML}
+  </Document>
+</kml>`;
+
+  const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `GNSS_Nivelman_Guzergah_${new Date().toISOString().slice(0, 10)}.kml`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
