@@ -12,7 +12,8 @@ import {
   ListOrdered,
   Layers,
   MapPin,
-  Printer
+  Printer,
+  Maximize2
 } from 'lucide-react';
 
 interface MapRouteTabProps {
@@ -421,29 +422,85 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     showToast('Harita güzergah sıralaması tabloya aktarıldı!');
   };
 
+  // Tüm noktaları ekrana sığdırma (Limit Ekran / Zoom Extents)
+  const handleZoomToExtents = () => {
+    if (!leafletMapRef.current || points.length === 0) return;
+    const allLatLngs: [number, number][] = [];
+    points.forEach((pt) => {
+      const coords = convertPointToWGS84(pt, crsSystem, crsDom);
+      if (coords.lat !== 0 || coords.lon !== 0) {
+        allLatLngs.push([coords.lat, coords.lon]);
+      }
+    });
+
+    if (allLatLngs.length > 0) {
+      leafletMapRef.current.fitBounds(L.latLngBounds(allLatLngs), {
+        padding: [50, 50],
+        animate: true,
+      });
+      setTimeout(updateScale, 200);
+      showToast('Tüm veri limit ekrana sığdırıldı');
+    }
+  };
+
+  // Haritayı tüm veri limit ekranda olacak şekilde tam sayfa yazdır / PDF
   const handlePrintMap = () => {
-    // 1. Sadece CAD harita ekranını tam ekran yazdırma moduna al
+    if (!leafletMapRef.current) return;
+    const map = leafletMapRef.current;
+
+    // 1. Mevcut tüm noktaların koordinat sınırlarını (bounds) hesapla
+    const allLatLngs: [number, number][] = [];
+    points.forEach((pt) => {
+      const coords = convertPointToWGS84(pt, crsSystem, crsDom);
+      if (coords.lat !== 0 || coords.lon !== 0) {
+        allLatLngs.push([coords.lat, coords.lon]);
+      }
+    });
+
+    if (allLatLngs.length === 0) {
+      alert('Yazdırılacak nokta verisi bulunamadı!');
+      return;
+    }
+
+    // Kullanıcının mevcut merkez ve yakınlaştırmasını sakla
+    const prevCenter = map.getCenter();
+    const prevZoom = map.getZoom();
+
+    // 2. Sadece CAD harita ekranını tam ekran yazdırma moduna al
     document.body.classList.add('print-map-only');
 
-    if (leafletMapRef.current) {
-      leafletMapRef.current.invalidateSize();
-    }
+    const applyLimitBounds = () => {
+      if (!leafletMapRef.current) return;
+      leafletMapRef.current.invalidateSize({ animate: false });
+      // Tüm veriyi limit ekranda kenar boşlukları ile tam sığdır
+      leafletMapRef.current.fitBounds(L.latLngBounds(allLatLngs), {
+        padding: [45, 45],
+        animate: false,
+      });
+      updateScale();
+    };
+
+    // İlk boyutlandırma ve limit ekrana sığdırma
+    applyLimitBounds();
 
     const cleanup = () => {
       document.body.classList.remove('print-map-only');
       if (leafletMapRef.current) {
-        leafletMapRef.current.invalidateSize();
+        leafletMapRef.current.invalidateSize({ animate: false });
+        leafletMapRef.current.setView(prevCenter, prevZoom, { animate: false });
+        updateScale();
       }
       window.removeEventListener('afterprint', cleanup);
     };
 
     window.addEventListener('afterprint', cleanup);
 
-    // Kısa gecikmeyle DOM ve Leaflet boyutlarının netleşmesini bekle ve yazdır
+    // DOM ve Leaflet tam ekran geçişinin kesinleşmesi için kısa gecikmeyle yazdır
     setTimeout(() => {
+      applyLimitBounds();
       window.print();
       setTimeout(cleanup, 2500);
-    }, 150);
+    }, 200);
   };
 
   return (
@@ -571,6 +628,16 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         {/* Map Container */}
         <div className="lg:col-span-3 h-[520px] rounded-xl overflow-hidden border border-slate-200 shadow-inner relative z-0 map-container-print">
           <div ref={mapContainerRef} className="w-full h-full" />
+
+          {/* Limit Ekran (Zoom Extents) Butonu */}
+          <button
+            onClick={handleZoomToExtents}
+            className="absolute top-3 right-3 z-400 bg-white/95 hover:bg-white text-slate-700 hover:text-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-300 shadow-md flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition no-print"
+            title="Tüm noktaları ve güzergahı ekrana sığdır (Limit Ekran)"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-sky-600" />
+            <span>Limit Ekran</span>
+          </button>
 
           {/* Geodetic North Arrow & Dynamic Linear Scale Bar (Çizgi Ölçek) */}
           <div
