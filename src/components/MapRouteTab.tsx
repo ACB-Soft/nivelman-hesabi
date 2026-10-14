@@ -443,51 +443,49 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     }
   };
 
-  // Haritayı tüm veri limit ekranda olacak şekilde tam sayfa yazdır / PDF
+  // Haritayı kullanıcının ekranda gördüğü mevcut yakınlaştırma, merkez ve alan ile yazdır / PDF
   const handlePrintMap = () => {
-    if (!leafletMapRef.current) return;
+    if (!leafletMapRef.current || !mapContainerRef.current) return;
     const map = leafletMapRef.current;
 
-    // 1. Mevcut tüm noktaların koordinat sınırlarını (bounds) hesapla
-    const allLatLngs: [number, number][] = [];
-    points.forEach((pt) => {
-      const coords = convertPointToWGS84(pt, crsSystem, crsDom);
-      if (coords.lat !== 0 || coords.lon !== 0) {
-        allLatLngs.push([coords.lat, coords.lon]);
-      }
-    });
+    // 1. Kullanıcının arayüzde tam olarak gördüğü harita merkezini ve yakınlaştırmasını al
+    const currentCenter = map.getCenter();
+    const currentZoom = map.getZoom();
 
-    if (allLatLngs.length === 0) {
-      alert('Yazdırılacak nokta verisi bulunamadı!');
-      return;
+    // 2. Ekrandaki harita alanının en/boy oranını (aspect ratio) al ve CSS değişkenine aktar
+    const container = mapContainerRef.current.parentElement; // .map-container-print
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        container.style.setProperty('--print-aspect-ratio', `${rect.width} / ${rect.height}`);
+      }
     }
 
-    // Kullanıcının mevcut merkez ve yakınlaştırmasını sakla
-    const prevCenter = map.getCenter();
-    const prevZoom = map.getZoom();
+    // 3. Yazıcı çıktısında haritanın yatay (landscape) ve sayfa orantılı basılması için geçici stil ekle
+    let printStyle = document.getElementById('map-print-page-style') as HTMLStyleElement | null;
+    if (!printStyle) {
+      printStyle = document.createElement('style');
+      printStyle.id = 'map-print-page-style';
+      printStyle.innerHTML = `@page { size: landscape; margin: 8mm; }`;
+      document.head.appendChild(printStyle);
+    }
 
-    // 2. Sadece CAD harita ekranını tam ekran yazdırma moduna al
+    // 4. Sadece CAD harita ekranını yazdırma moduna al
     document.body.classList.add('print-map-only');
 
-    const applyLimitBounds = () => {
-      if (!leafletMapRef.current) return;
-      leafletMapRef.current.invalidateSize({ animate: false });
-      // Tüm veriyi limit ekranda kenar boşlukları ile tam sığdır
-      leafletMapRef.current.fitBounds(L.latLngBounds(allLatLngs), {
-        padding: [45, 45],
-        animate: false,
-      });
-      updateScale();
-    };
-
-    // İlk boyutlandırma ve limit ekrana sığdırma
-    applyLimitBounds();
+    // 5. Harita boyutunu güncelle ve kullanıcının ekranda gördüğü merkez ve zoom'u aynen koru
+    map.invalidateSize({ animate: false });
+    map.setView(currentCenter, currentZoom, { animate: false });
+    updateScale();
 
     const cleanup = () => {
       document.body.classList.remove('print-map-only');
+      const styleTag = document.getElementById('map-print-page-style');
+      if (styleTag) styleTag.remove();
+
       if (leafletMapRef.current) {
         leafletMapRef.current.invalidateSize({ animate: false });
-        leafletMapRef.current.setView(prevCenter, prevZoom, { animate: false });
+        leafletMapRef.current.setView(currentCenter, currentZoom, { animate: false });
         updateScale();
       }
       window.removeEventListener('afterprint', cleanup);
@@ -495,12 +493,16 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
     window.addEventListener('afterprint', cleanup);
 
-    // DOM ve Leaflet tam ekran geçişinin kesinleşmesi için kısa gecikmeyle yazdır
+    // Kısa gecikmeyle (DOM yerleşimi sonrası) ekrandaki haritayı yazdır
     setTimeout(() => {
-      applyLimitBounds();
+      if (leafletMapRef.current) {
+        leafletMapRef.current.invalidateSize({ animate: false });
+        leafletMapRef.current.setView(currentCenter, currentZoom, { animate: false });
+        updateScale();
+      }
       window.print();
       setTimeout(cleanup, 2500);
-    }, 200);
+    }, 150);
   };
 
   return (
@@ -592,7 +594,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
           <button
             onClick={handlePrintMap}
             className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer no-print"
-            title="Yalnızca CAD harita güzergah ekranını (kuzey oku, ölçek ve altlık ile) yazdırın veya PDF olarak kaydedin"
+            title="Ekranda görünen mevcut harita alanını (kuzey oku, ölçek ve altlık ile) birebir yazdırın veya PDF olarak kaydedin"
           >
             <Printer className="w-3.5 h-3.5 text-sky-400" />
             <span>Haritayı Yazdır / PDF</span>
