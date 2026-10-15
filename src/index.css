@@ -42,7 +42,7 @@
   background: #94a3b8;
 }
 
-/* Leaflet Custom Marker Numbers */
+/* Leaflet Custom Marker & Geodetic Point Labels */
 .custom-leaflet-marker {
   background: transparent !important;
   border: none !important;
@@ -51,32 +51,92 @@
   justify-content: center !important;
   pointer-events: auto !important;
 }
-.leaflet-marker-badge {
-  background-color: #0369a1;
-  color: white;
-  border-radius: 9999px;
-  border: 2px solid white;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
-  text-align: center;
-  white-space: nowrap;
-  cursor: pointer;
-  transform: translate(-50%, -50%);
-  display: inline-flex;
+
+.survey-marker-container {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -4px); /* Puts the 8px dot center exactly at (0, 0) coordinates */
+  pointer-events: auto;
+  cursor: pointer;
   user-select: none;
-  line-height: 1.2;
-  transition: transform 0.15s ease, font-size 0.15s ease, padding 0.15s ease;
+  z-index: 10;
+  transition: transform 0.15s ease;
 }
-.leaflet-marker-badge:hover {
-  transform: translate(-50%, -50%) scale(1.12);
+
+.survey-marker-container:hover {
+  transform: translate(-50%, -4px) scale(1.15);
   z-index: 1000 !important;
 }
-.leaflet-marker-badge.start-badge {
-  background-color: #16a34a !important;
+
+.survey-marker-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: #0284c7;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
-.leaflet-marker-badge.end-badge {
+
+.survey-marker-dot.start-dot {
+  background-color: #16a34a !important;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ffffff;
+}
+
+.survey-marker-dot.end-dot {
   background-color: #dc2626 !important;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ffffff;
+}
+
+/* Nokta isimleri: Mavi kutucuk kaldırıldı, siyah renkli ve dışı beyaz çizgili belirgin yazı */
+.survey-marker-label {
+  margin-top: 2px;
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #000000 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 800;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  padding: 0 !important;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 2.5px #ffffff;
+  text-shadow: 
+    -1px -1px 0 #ffffff,
+     1px -1px 0 #ffffff,
+    -1px  1px 0 #ffffff,
+     1px  1px 0 #ffffff,
+    -1.5px 0 0 #ffffff,
+     1.5px 0 0 #ffffff,
+     0 -1.5px 0 #ffffff,
+     0  1.5px 0 #ffffff,
+     0 0 3px #ffffff;
+}
+
+.survey-marker-label.start-label,
+.survey-marker-label.end-label,
+.survey-marker-label.route-label {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #000000 !important;
+  border: none !important;
+  box-shadow: none !important;
+  paint-order: stroke fill;
+  -webkit-text-stroke: 2.5px #ffffff;
 }
 
 /* Hide Leaflet Brand Attribution */

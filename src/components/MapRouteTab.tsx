@@ -48,7 +48,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
   const [selectedRoute, setSelectedRoute] = useState<GNSSPoint[]>([]);
   const [isSelectionActive, setIsSelectionActive] = useState(false);
-  const [mapType, setMapType] = useState<'hybrid' | 'osm' | 'grid'>(
+  const [mapType, setMapType] = useState<'satellite' | 'osm' | 'grid'>(
     typeof navigator !== 'undefined' && !navigator.onLine ? 'grid' : 'osm'
   );
   const [scale, setScale] = useState<{ width: number; label: string }>({ width: 75, label: '100 m' });
@@ -150,12 +150,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         zoomControl: false,
       });
 
-      // Default OpenStreetMap layer with crossOrigin enabled for PNG canvas export
+      // Default OpenStreetMap layer with high resolution (detectRetina) and crossOrigin enabled
       const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 22,
         maxNativeZoom: 19,
         subdomains: ['a', 'b', 'c'],
         crossOrigin: true,
+        detectRetina: true,
       });
 
       osmLayer.addTo(map);
@@ -207,19 +208,23 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       }
     });
 
-    if (mapType === 'hybrid') {
-      L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    if (mapType === 'satellite') {
+      // Saf Uydu Görüntüsü (Hibrit görünümden çıkarıldı - lyrs=s, scale=2 ile ultra yüksek çözünürlük)
+      L.tileLayer('https://{s}.google.com/vt/lyrs=s&scale=2&x={x}&y={y}&z={z}', {
         maxZoom: 22,
         maxNativeZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
         crossOrigin: true,
+        tileSize: 256,
       }).addTo(map);
     } else if (mapType === 'osm') {
+      // Yüksek Çözünürlüklü Sokak Haritası (Retina / detectRetina aktif)
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 22,
         maxNativeZoom: 19,
         subdomains: ['a', 'b', 'c'],
         crossOrigin: true,
+        detectRetina: true,
       }).addTo(map);
     } else {
       // Modern High-Precision CAD Offline Grid Layer (100% canvas, 0 CORS constraints)
@@ -328,35 +333,41 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
       // 1 punto ile 10 punto arası kullanıcı seçimi veya otomatik ölçekleme
       let fontSizePx = Math.max(9, Math.min(16, +(7.5 + (currentZoom - 6) * 0.7).toFixed(1)));
-      let paddingY = Math.max(1, Math.min(4, Math.round((currentZoom - 8) * 0.3)));
-      let paddingX = Math.max(4, Math.min(10, Math.round((currentZoom - 6) * 0.5)));
-      let borderWidth = currentZoom >= 14 ? 2 : 1.5;
 
       if (pointPunto !== 'auto') {
         // 1 punto ile 10 punto arası hassas, orantılı ölçekleme
-        fontSizePx = Math.round(6 + pointPunto * 1.0);
-        paddingY = Math.max(0.5, +(pointPunto * 0.25).toFixed(1));
-        paddingX = Math.max(2, Math.round(pointPunto * 0.7));
+        fontSizePx = Math.round(8 + pointPunto * 1.0);
       }
 
-      let badgeClass = 'leaflet-marker-badge';
-      let labelText = pt.id;
+      let dotClass = 'survey-marker-dot';
+      let labelClass = 'survey-marker-label';
+      // Nokta isimlerinden önce yer alan sıra numarası ifadeleri tamamen kaldırıldı
+      const labelText = pt.id;
 
       if (isSelected) {
         if (selIndex === 0) {
-          badgeClass += ' start-badge';
-          labelText = currentZoom >= 14 ? `1. ${pt.id} (BAŞLANGIÇ)` : `1. ${pt.id}`;
+          dotClass += ' start-dot';
+          labelClass += ' start-label';
         } else if (selIndex === selectedRoute.length - 1 && selectedRoute.length === points.length) {
-          badgeClass += ' end-badge';
-          labelText = currentZoom >= 14 ? `${selIndex + 1}. ${pt.id} (BİTİŞ)` : `${selIndex + 1}. ${pt.id}`;
+          dotClass += ' end-dot';
+          labelClass += ' end-label';
         } else {
-          labelText = `${selIndex + 1}. ${pt.id}`;
+          labelClass += ' route-label';
         }
       }
 
+      // Nokta sembolü koordinatta, nokta ismi ise noktayı tam ortalayacak şekilde noktanın altında
+      // Mavi kutucuksuz, siyah renkli ve dışı beyaz çizgili belirgin yazı
       const customIcon = L.divIcon({
         className: 'custom-leaflet-marker',
-        html: `<div class="${badgeClass}" style="font-size: ${fontSizePx}px; padding: ${paddingY}px ${paddingX}px; border-width: ${borderWidth}px;">${labelText}</div>`,
+        html: `
+          <div class="survey-marker-container">
+            <div class="${dotClass}"></div>
+            <div class="${labelClass}" style="font-size: ${fontSizePx}px;">
+              ${labelText}
+            </div>
+          </div>
+        `,
         iconSize: [0, 0],
         iconAnchor: [0, 0],
       });
@@ -378,17 +389,6 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       `);
 
       markersGroup.addLayer(marker);
-
-      // Route alignment indicator dot
-      const circle = L.circleMarker(latLng, {
-        radius: 3,
-        fillColor: '#000000',
-        color: '#000000',
-        weight: 1,
-        opacity: 1,
-        fillOpacity: 1,
-      });
-      markersGroup.addLayer(circle);
     });
 
     if (selectedRoute.length > 0) {
@@ -542,13 +542,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         leafletMapRef.current.invalidateSize({ animate: false });
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
       const element = a4SheetRef.current;
 
       const dataUrl = await toPng(element, {
         cacheBust: true,
-        pixelRatio: 2, // 2x yüksek çözünürlüklü ve net mühendislik çıktısı
+        pixelRatio: 3, // 3x Ultra HD yüksek çözünürlüklü ve net mühendislik çıktısı
         backgroundColor: '#ffffff',
         filter: (node: HTMLElement) => {
           // 'no-export' sınıfına sahip arayüz kontrol butonlarını PNG görseline dahil etme
@@ -569,10 +569,10 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       downloadLink.click();
       downloadLink.remove();
 
-      showToast('Harita görseli (PNG) başarıyla indirildi!');
+      showToast('Harita görseli (Ultra HD PNG) başarıyla indirildi!');
     } catch (err: any) {
       console.error('Harita PNG indirme hatası:', err);
-      if (mapType === 'hybrid') {
+      if (mapType === 'satellite') {
         showToast('Uydu altlığı CORS kısıtlaması nedeniyle indirilemedi. Lütfen "Sokak" veya "Çevrimdışı Izgara" altlığına geçip tekrar deneyin.');
       } else {
         showToast('Harita görseli indirilirken hata oluştu: ' + (err?.message || 'Lütfen tekrar deneyin.'));
@@ -599,9 +599,9 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             Sokak
           </button>
           <button
-            onClick={() => setMapType('hybrid')}
+            onClick={() => setMapType('satellite')}
             className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
-              mapType === 'hybrid'
+              mapType === 'satellite'
                 ? 'bg-white text-sky-700 shadow-xs border border-slate-200'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
