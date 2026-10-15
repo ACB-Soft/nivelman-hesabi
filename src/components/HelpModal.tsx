@@ -5,15 +5,8 @@ import {
   ShieldCheck,
   Info,
   X,
-  FileSpreadsheet,
-  MapPin,
-  Calculator,
-  FileText,
   Mail,
-  Lock,
-  Compass,
-  CheckCircle2,
-  HardDrive
+  Lock
 } from 'lucide-react';
 import { Sqrt } from './Sqrt';
 
@@ -47,7 +40,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                 Yardım & Hakkında
               </h2>
               <p className="text-xs text-slate-500">
-                Kullanım kılavuzu, teknik jeodezik altyapı, formüller ve sistem bilgileri
+                Temel jeodezik formüller, hesap standartları ve sistem bilgileri
               </p>
             </div>
           </div>
@@ -63,126 +56,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
         {/* Modal Scrollable Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-7 space-y-8">
-          {/* Bölüm 1: Kullanım Kılavuzu */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-200">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900 uppercase tracking-tight">
-                  Kullanım Kılavuzu
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Uygulamanın adım adım iş akışı ve temel özellikleri
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3.5">
-              {/* Adım 1: Veri Girişi & Proje Yönetimi */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
-                <h4 className="font-bold text-slate-900 text-sm uppercase flex items-center gap-2">
-                  <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                    1
-                  </span>
-                  <span>Proje Yönetimi & Veri Girişi</span>
-                </h4>
-                <p className="text-slate-600 text-xs leading-relaxed text-justify">
-                  Saha ölçümlerinizi hızlıca sisteme aktarabilir veya manuel oluşturabilirsiniz:
-                </p>
-                <ul className="text-xs text-slate-600 space-y-2 pl-1">
-                  <li className="flex items-start gap-2">
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Çoklu Format Desteği:</b> Ölçüm verilerinizi CSV, Excel (.xlsx/.xls) veya boşluk/tab ile ayrılmış Metin (.txt) dosyalarından tek tıkla içe aktarın.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Compass className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Koordinat Sistemi Tanımlama:</b> Projeniz için ITRF96 (3° TM), ED50 (3° TM) veya UTM (6°) sistemlerinden birini ve ilgili Dilim Orta Meridyenini (DOM) seçin.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Röper Kotları & Tolerans:</b> Başlangıç (HA) ve Bitiş (HB) bilinen nivelman röper kotlarını girin; BÖHHBÜY tolerans katsayısını (varsayılan: 12 mm/√km) belirleyin.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Adım 2: Güzergah Seçimi (Harita) */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
-                <h4 className="font-bold text-slate-900 text-sm uppercase flex items-center gap-2">
-                  <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                    2
-                  </span>
-                  <span>Güzergah Seçimi & İnteraktif Harita</span>
-                </h4>
-                <p className="text-slate-600 text-xs leading-relaxed text-justify">
-                  Noktalarınız arasındaki fiziksel nivelman bağlantısını harita üzerinde doğrulayın:
-                </p>
-                <ul className="text-xs text-slate-600 space-y-2 pl-1">
-                  <li className="flex items-start gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>İnteraktif Güzergah Çizimi:</b> Harita üzerinde noktalara tıklayarak veya seçim sırası panelini kullanarak nivelman poligon hattını oluşturun.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Compass className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Köşe Koordinatları:</b> Harita dış köşelerine 4 adet '+' kros işareti ve anlık Enlem / Boylam coğrafi koordinatları yerleştirilir.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Harita İndirme & Pafta:</b> Yüksek çözünürlüklü uydu ve sokak altlığıyla, köşe krosları ve kuzey okuyla birlikte anlık A4 ölçekli PNG harita paftası indirin.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Adım 3: Dengeleme Hesabı */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
-                <h4 className="font-bold text-slate-900 text-sm uppercase flex items-center gap-2">
-                  <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                    3
-                  </span>
-                  <span>Dengeleme Hesabı & Kriterler</span>
-                </h4>
-                <p className="text-slate-600 text-xs leading-relaxed text-justify">
-                  GNSS ölçüleri ile jeoit modeli entegrasyonu yapılarak BÖHHBÜY kurallarınca dengeleme icra edilir:
-                </p>
-                <ul className="text-xs text-slate-600 space-y-2 pl-1">
-                  <li className="flex items-start gap-2">
-                    <Calculator className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Kenar Orantılı Düzeltme Dağıtımı:</b> Kapanma hatası (W), güzergahtaki ardışık noktalar arasındaki yatay mesafeler oranında dağıtılır.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Tolerans Değerlendirmesi:</b> Toplam güzergah uzunluğuna bağlı teorik tolerans sınırı (T) hesaplanır ve kapanma hatasının izin verilen limit içinde kalıp kalmadığı otomatik denetlenir.</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Adım 4: Raporlama ve Dışa Aktarma */}
-              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
-                <h4 className="font-bold text-slate-900 text-sm uppercase flex items-center gap-2">
-                  <span className="w-6 h-6 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                    4
-                  </span>
-                  <span>Raporlama & Veri Dışa Aktarma</span>
-                </h4>
-                <p className="text-slate-600 text-xs leading-relaxed text-justify">
-                  Sonuçları kurum ve onay standartlarına uygun resmi formatlarda belgeleyin:
-                </p>
-                <ul className="text-xs text-slate-600 space-y-2 pl-1">
-                  <li className="flex items-start gap-2">
-                    <FileText className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Resmi Nivelman Karnesi:</b> Firma/Kurum başlığı, güzergah özeti, kapanma ve tolerans tablosu içeren baskıya hazır A4 Dengeleme Raporu alın.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <HardDrive className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                    <span><b>Farklı Format Çıktıları:</b> Dengelenmiş sonuçları Excel (.xlsx), Metin (.txt), Google Earth (.kml) ve dijital imzalı JSON proje yedeği olarak kaydedin.</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          {/* Bölüm 2: Teknik Altyapı (Nasıl Çalışır?) */}
+          {/* Bölüm: Teknik Altyapı (Nasıl Çalışır?) */}
           <section className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-md shadow-amber-200">
@@ -190,10 +64,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 uppercase tracking-tight">
-                  Nasıl Çalışır? (Teknik Altyapı)
+                  Nasıl Çalışır?
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Temel jeodezik formüller, hesap adımları ve BÖHHBÜY tolerans standartları
+                  Temel jeodezik formüller, hesap adımları ve tolerans standartları
                 </p>
               </div>
             </div>
@@ -281,7 +155,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   <span className="w-5 h-5 bg-amber-100 text-amber-700 rounded flex items-center justify-center text-[11px] font-mono font-bold">
                     3
                   </span>
-                  <span>Düzeltme Dağıtım Yöntemi (BÖHHBÜY Standardı)</span>
+                  <span>Düzeltme Dağıtım Yöntemi </span>
                 </h4>
                 <div className="bg-amber-50/60 border border-amber-200 p-3.5 rounded-xl space-y-2 text-xs">
                   <strong className="text-amber-900 block font-semibold text-xs">
@@ -361,9 +235,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   <p>
                     <b>Yerel Depolama (Local Storage):</b> Proje ve ölçüm verileriniz tamamen tarayıcınızın güvenli yerel depolama alanında saklanır. Harici sunuculara hiçbir koordinat veya ölçüm verisi aktarılmaz.
                   </p>
-                  <p>
-                    <b>Kriptografik HMAC-SHA256 Koruması:</b> Projenizi dışa aktardığınızda (JSON Yedek), verilerinizin bütünlüğü dijital imza ile mühürlenir. Dosya harici olarak tahrif edilirse içe aktarma sırasında sistem sizi uyarır.
-                  </p>
+                 
                   <p className="text-[11px] text-emerald-800">
                     Önemli Not: Tarayıcı geçmişinizi ve önbelleğinizi temizlediğinizde veya cihazınızı sıfırladığınızda yerel veriler silinebilir. Çalışmalarınızı düzenli olarak <b>JSON Proje Yedeği</b> alarak arşivleyiniz.
                   </p>
@@ -390,7 +262,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
 
             <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-4">
               <p className="text-xs text-slate-700 font-medium leading-relaxed text-justify">
-                Bu uygulama, GNSS Nivelmanı saha çalışmalarında ve büro hesaplarında hızlı, güvenilir ve BÖHHBÜY standartlarına tam uyumlu güzergah dengelemesi sağlamak amacıyla geliştirilmiştir. Çevrimdışı PWA desteği sayesinde sahada internet olmadan da kesintisiz çalışabilirsiniz.
+                Bu uygulama, GNSS Nivelmanı saha çalışmalarında ve büro hesaplarında hızlı, güvenilir ve standartlara tam uyumlu güzergah dengelemesi sağlamak amacıyla geliştirilmiştir.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
@@ -399,7 +271,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                     Yazılım / Sürüm
                   </span>
                   <span className="text-xs font-bold text-slate-900">
-                    Nivelman Hesabı v1.0.0 (BSR Maps)
+                    Nivelman Hesabı v1.0
                   </span>
                 </div>
                 <div className="flex flex-col space-y-0.5">
@@ -411,7 +283,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                     className="text-xs font-bold text-sky-600 hover:text-sky-700 hover:underline flex items-center gap-1"
                   >
                     <Mail className="w-3.5 h-3.5" />
-                    <span>acbmaps@gmail.com</span>
+                    <span>bsrmaps@gmail.com</span>
                   </a>
                 </div>
               </div>
@@ -422,7 +294,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         {/* Modal Footer */}
         <div className="p-3.5 sm:px-6 bg-white border-t border-slate-200 flex justify-between items-center shrink-0">
           <span className="text-[11px] text-slate-400 hidden sm:inline">
-            BSR Maps &middot; GNSS Nivelmanı Dengeleme Sistemi
+            BSR Maps
           </span>
           <button
             type="button"
