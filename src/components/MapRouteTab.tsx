@@ -48,9 +48,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
   const [selectedRoute, setSelectedRoute] = useState<GNSSPoint[]>([]);
   const [isSelectionActive, setIsSelectionActive] = useState(false);
-  const [mapType, setMapType] = useState<'satellite' | 'osm' | 'grid'>(
-    typeof navigator !== 'undefined' && !navigator.onLine ? 'grid' : 'osm'
-  );
+  const [mapType, setMapType] = useState<'satellite' | 'osm' | 'grid'>('satellite');
   const [scale, setScale] = useState<{ width: number; label: string }>({ width: 75, label: '100 m' });
   const [currentZoom, setCurrentZoom] = useState<number>(6);
 
@@ -150,16 +148,16 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         zoomControl: false,
       });
 
-      // Default OpenStreetMap layer with high resolution (detectRetina) and crossOrigin enabled
-      const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // Varsayılan Saf Yüksek Çözünürlüklü Uydu Katmanı (lyrs=s, scale=2)
+      const satelliteLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=s&scale=2&x={x}&y={y}&z={z}', {
         maxZoom: 22,
-        maxNativeZoom: 19,
-        subdomains: ['a', 'b', 'c'],
+        maxNativeZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
         crossOrigin: true,
-        detectRetina: true,
+        tileSize: 256,
       });
 
-      osmLayer.addTo(map);
+      satelliteLayer.addTo(map);
 
       const markersGroup = L.layerGroup().addTo(map);
       const line = L.polyline([], {
@@ -179,7 +177,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         updateScale();
       };
 
-      map.on('zoomend', onZoom);
+      map.on('zoom zoomend', onZoom);
       map.on('moveend resize', updateScale);
     }
 
@@ -307,10 +305,11 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     return () => clearTimeout(timer);
   }, [paperOrientation]);
 
-  // Redraw Markers and Polyline
+  // Redraw Markers and Polyline with Intelligent Collision Detection
   useEffect(() => {
     if (!leafletMapRef.current || !markersLayerRef.current || !polylineRef.current) return;
 
+    const map = leafletMapRef.current;
     const markersGroup = markersLayerRef.current;
     const polyline = polylineRef.current;
 
@@ -321,6 +320,30 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
 
     const latLngs: L.LatLngExpression[] = [];
 
+    // 1- Punto büyüklüğü belirleme
+    let baseFontSize = Math.max(9, Math.min(16, +(7.5 + (currentZoom - 6) * 0.7).toFixed(1)));
+    if (pointPunto !== 'auto') {
+      baseFontSize = Math.round(8 + pointPunto * 1.0);
+    }
+
+    // 2- Noktaları hazırla ve ekran piksel izdüşümlerini hesapla
+    interface MarkerItem {
+      pt: GNSSPoint;
+      latLng: [number, number];
+      proj: L.Point;
+      fontSizePx: number;
+      width: number;
+      height: number;
+      position: 'bottom' | 'top';
+      isSelected: boolean;
+      selIndex: number;
+      dotClass: string;
+      labelClass: string;
+      labelText: string;
+    }
+
+    const items: MarkerItem[] = [];
+
     points.forEach((pt) => {
       const coords = convertPointToWGS84(pt, crsSystem, crsDom);
       if (coords.lat === 0 && coords.lon === 0) return;
@@ -328,20 +351,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       const latLng: [number, number] = [coords.lat, coords.lon];
       latLngs.push(latLng);
 
+      const proj = map.project(L.latLng(coords.lat, coords.lon), currentZoom);
+
       const selIndex = selectedRoute.findIndex((sp) => sp.id === pt.id);
       const isSelected = selIndex !== -1;
 
-      // 1 punto ile 10 punto arası kullanıcı seçimi veya otomatik ölçekleme
-      let fontSizePx = Math.max(9, Math.min(16, +(7.5 + (currentZoom - 6) * 0.7).toFixed(1)));
-
-      if (pointPunto !== 'auto') {
-        // 1 punto ile 10 punto arası hassas, orantılı ölçekleme
-        fontSizePx = Math.round(8 + pointPunto * 1.0);
-      }
-
       let dotClass = 'survey-marker-dot';
       let labelClass = 'survey-marker-label';
-      // Nokta isimlerinden önce yer alan sıra numarası ifadeleri tamamen kaldırıldı
       const labelText = pt.id;
 
       if (isSelected) {
@@ -356,15 +372,119 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         }
       }
 
-      // Nokta sembolü koordinatta, nokta ismi ise noktayı tam ortalayacak şekilde noktanın altında
-      // Mavi kutucuksuz, siyah renkli ve dışı beyaz çizgili belirgin yazı
+      // Yaklaşık metin genişliği ve yüksekliği (çakışma tespiti için)
+      const width = Math.max(18, labelText.length * (baseFontSize * 0.65) + 6);
+      const height = baseFontSize * 1.25 + 4;
+
+      items.push({
+        pt,
+        latLng,
+        proj,
+        fontSizePx: baseFontSize,
+        width,
+        height,
+        position: 'bottom', // Varsayılan nokta altı
+        isSelected,
+        selIndex,
+        dotClass,
+        labelClass,
+        labelText,
+      });
+    });
+
+    // 3- Çakışma Tespiti ve Nokta İsmini Üste Alma Algoritması
+    // Birbiriyle çakışan veya altındaki komşu noktayı kapatan yerlerde, nokta ismi noktanın üstüne yazdırılır
+    const getLabelBox = (item: MarkerItem, pos: 'bottom' | 'top') => {
+      const halfW = item.width / 2;
+      if (pos === 'top') {
+        return {
+          x1: item.proj.x - halfW,
+          y1: item.proj.y - 6 - item.height,
+          x2: item.proj.x + halfW,
+          y2: item.proj.y - 6,
+        };
+      } else {
+        return {
+          x1: item.proj.x - halfW,
+          y1: item.proj.y + 6,
+          x2: item.proj.x + halfW,
+          y2: item.proj.y + 6 + item.height,
+        };
+      }
+    };
+
+    const getDotBox = (item: MarkerItem) => ({
+      x1: item.proj.x - 5,
+      y1: item.proj.y - 5,
+      x2: item.proj.x + 5,
+      y2: item.proj.y + 5,
+    });
+
+    const isBoxColliding = (
+      b1: { x1: number; y1: number; x2: number; y2: number },
+      b2: { x1: number; y1: number; x2: number; y2: number },
+      margin = 2
+    ) => {
+      return !(
+        b1.x2 + margin < b2.x1 ||
+        b1.x1 - margin > b2.x2 ||
+        b1.y2 + margin < b2.y1 ||
+        b1.y1 - margin > b2.y2
+      );
+    };
+
+    const evaluateCost = (
+      index: number,
+      candidatePos: 'bottom' | 'top',
+      list: MarkerItem[]
+    ) => {
+      const box = getLabelBox(list[index], candidatePos);
+      let cost = candidatePos === 'top' ? 0.05 : 0; // Varsayılan olarak altta kalma eğilimi
+
+      for (let j = 0; j < list.length; j++) {
+        if (j === index) continue;
+        const other = list[j];
+        const otherBox = getLabelBox(other, other.position);
+        const otherDot = getDotBox(other);
+
+        if (isBoxColliding(box, otherBox, 2)) {
+          cost += 10;
+        }
+        if (isBoxColliding(box, otherDot, 2)) {
+          cost += 15;
+        }
+      }
+      return cost;
+    };
+
+    // Ekran üzerinde yukarıda (kuzeyde) olan noktalara (küçük y) öncelik vererek sıralı optimizasyon
+    const sortedIndices = items.map((_, i) => i).sort((a, b) => items[a].proj.y - items[b].proj.y);
+
+    for (let pass = 0; pass < 2; pass++) {
+      for (const idx of sortedIndices) {
+        const costBottom = evaluateCost(idx, 'bottom', items);
+        const costTop = evaluateCost(idx, 'top', items);
+
+        if (costTop < costBottom) {
+          items[idx].position = 'top';
+        } else if (costBottom <= costTop && items[idx].position === 'top') {
+          items[idx].position = 'bottom';
+        }
+      }
+    }
+
+    // 4- Marker nesnelerini oluştur ve haritaya ekle
+    items.forEach((item) => {
+      const posClass = item.position === 'top' ? 'label-pos-top' : 'label-pos-bottom';
+
+      // Nokta sembolü tam koordinatta, isim ise çakışmasız olarak altta ya da üstte ortalı
       const customIcon = L.divIcon({
         className: 'custom-leaflet-marker',
         html: `
-          <div class="survey-marker-container">
-            <div class="${dotClass}"></div>
-            <div class="${labelClass}" style="font-size: ${fontSizePx}px;">
-              ${labelText}
+          <div class="survey-marker-container ${posClass}">
+            <div class="${item.dotClass}"></div>
+            <div class="${item.labelClass}" style="font-size: ${item.fontSizePx}px;">
+              ${item.labelText}
             </div>
           </div>
         `,
@@ -372,19 +492,19 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         iconAnchor: [0, 0],
       });
 
-      const marker = L.marker(latLng, { icon: customIcon });
+      const marker = L.marker(item.latLng, { icon: customIcon });
 
       marker.on('click', () => {
-        handleMarkerClick(pt);
+        handleMarkerClick(item.pt);
       });
 
       marker.bindPopup(`
         <div style="font-family:sans-serif;font-size:12px;line-height:1.4">
-          <b style="color:#ff0000;font-size:13px">${pt.id}</b><br/>
-          <b>Sağa (Y):</b> ${pt.y.toFixed(4)} m<br/>
-          <b>Yukarı (X):</b> ${pt.x.toFixed(4)} m<br/>
-          <b>Elipsoid (h):</b> ${pt.h.toFixed(4)} m<br/>
-          <b>Jeoit (N):</b> ${pt.n.toFixed(3)} m
+          <b style="color:#ff0000;font-size:13px">${item.pt.id}</b><br/>
+          <b>Sağa (Y):</b> ${item.pt.y.toFixed(4)} m<br/>
+          <b>Yukarı (X):</b> ${item.pt.x.toFixed(4)} m<br/>
+          <b>Elipsoid (h):</b> ${item.pt.h.toFixed(4)} m<br/>
+          <b>Jeoit (N):</b> ${item.pt.n.toFixed(3)} m
         </div>
       `);
 
@@ -586,18 +706,8 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
       {/* 1. Üst İşlem Çubuğu (Top Action Bar) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        {/* Altlık Katman Seçimi */}
+        {/* Altlık Katman Seçimi (Varsayılan: Uydu) */}
         <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <button
-            onClick={() => setMapType('osm')}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
-              mapType === 'osm'
-                ? 'bg-white text-sky-700 shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Sokak
-          </button>
           <button
             onClick={() => setMapType('satellite')}
             className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
@@ -607,6 +717,16 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             }`}
           >
             Uydu
+          </button>
+          <button
+            onClick={() => setMapType('osm')}
+            className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1 ${
+              mapType === 'osm'
+                ? 'bg-white text-sky-700 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Sokak
           </button>
           <button
             onClick={() => setMapType('grid')}
