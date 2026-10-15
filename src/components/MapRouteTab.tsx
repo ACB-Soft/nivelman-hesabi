@@ -162,7 +162,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       const h = container.clientHeight;
       if (w <= 0 || h <= 0) return;
 
-      const inset = 16;
+      const inset = 20;
       const pTL = map.containerPointToLatLng(L.point(inset, inset));
       const pTR = map.containerPointToLatLng(L.point(w - inset, inset));
       const pBL = map.containerPointToLatLng(L.point(inset, h - inset));
@@ -1022,78 +1022,150 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             <div className="flex-1 w-full relative overflow-hidden bg-slate-50 isolate">
               <div ref={mapContainerRef} className="w-full h-full relative z-0" />
 
-              {/* 4 Dış Köşe Koordinatları (Y/X) - Çerçevesiz */}
+              {/* 4 Dış Köşe Koordinatları (Enlem / Boylam) - + İşareti Beyaz Kabartmalı, Eksen Hizalı */}
               {showCornerCoords && cornerCoords && (
                 <>
                   {/* Sol Üst Köşe Krosu ve Koordinatları */}
-                  <div className="absolute top-[16px] left-[16px] z-20 pointer-events-none select-none flex items-start gap-1.5 -translate-x-2 -translate-y-2">
-                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
-                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
-                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                  <div className="absolute top-[20px] left-[20px] z-20 pointer-events-none select-none">
+                    {/* + Kros İşareti (Beyaz Kabartmalı) */}
+                    <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                        className="overflow-visible select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+                      >
+                        {/* Beyaz Kabartma Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        {/* Siyah Kros Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                      </svg>
                     </div>
-                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight">
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
-                        {cornerCoords.topLeft.formattedLat}
-                      </div>
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
-                        {cornerCoords.topLeft.formattedLng}
-                      </div>
+                    {/* Enlem (Yatay Eksen Üzerinde) */}
+                    <div className="absolute left-[14px] top-0 -translate-y-1/2 corner-coord-label">
+                      Enlem: {cornerCoords.topLeft.formattedLat}
+                    </div>
+                    {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Altında Dik) */}
+                    <div
+                      className="absolute corner-coord-label"
+                      style={{
+                        top: 14,
+                        left: 0,
+                        transform: 'rotate(90deg)',
+                        transformOrigin: '0 50%',
+                      }}
+                    >
+                      Boylam: {cornerCoords.topLeft.formattedLng}
                     </div>
                   </div>
 
                   {/* Sağ Üst Köşe Krosu ve Koordinatları */}
-                  <div className="absolute top-[16px] right-[16px] z-20 pointer-events-none select-none flex items-start gap-1.5 translate-x-2 -translate-y-2">
-                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight text-right">
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
-                        {cornerCoords.topRight.formattedLat}
-                      </div>
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
-                        {cornerCoords.topRight.formattedLng}
-                      </div>
+                  <div className="absolute top-[20px] right-[20px] z-20 pointer-events-none select-none">
+                    {/* + Kros İşareti (Beyaz Kabartmalı) */}
+                    <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                        className="overflow-visible select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+                      >
+                        {/* Beyaz Kabartma Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        {/* Siyah Kros Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                      </svg>
                     </div>
-                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
-                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
-                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                    {/* Enlem (Yatay Eksen Üzerinde) */}
+                    <div className="absolute right-[14px] top-0 -translate-y-1/2 corner-coord-label text-right">
+                      Enlem: {cornerCoords.topRight.formattedLat}
+                    </div>
+                    {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Altında Dik) */}
+                    <div
+                      className="absolute corner-coord-label"
+                      style={{
+                        top: 14,
+                        left: 0,
+                        transform: 'rotate(90deg)',
+                        transformOrigin: '0 50%',
+                      }}
+                    >
+                      Boylam: {cornerCoords.topRight.formattedLng}
                     </div>
                   </div>
 
                   {/* Sağ Alt Köşe Krosu ve Koordinatları */}
-                  <div className="absolute bottom-[16px] right-[16px] z-20 pointer-events-none select-none flex items-end gap-1.5 translate-x-2 translate-y-2">
-                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight text-right">
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
-                        {cornerCoords.bottomRight.formattedLat}
-                      </div>
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
-                        {cornerCoords.bottomRight.formattedLng}
-                      </div>
+                  <div className="absolute bottom-[20px] right-[20px] z-20 pointer-events-none select-none">
+                    {/* + Kros İşareti (Beyaz Kabartmalı) */}
+                    <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                        className="overflow-visible select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+                      >
+                        {/* Beyaz Kabartma Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        {/* Siyah Kros Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                      </svg>
                     </div>
-                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
-                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
-                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                    {/* Enlem (Yatay Eksen Üzerinde) */}
+                    <div className="absolute right-[14px] top-0 -translate-y-1/2 corner-coord-label text-right">
+                      Enlem: {cornerCoords.bottomRight.formattedLat}
+                    </div>
+                    {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Üstünde Dik) */}
+                    <div
+                      className="absolute corner-coord-label"
+                      style={{
+                        top: -14,
+                        left: 0,
+                        transform: 'rotate(-90deg)',
+                        transformOrigin: '0 50%',
+                      }}
+                    >
+                      Boylam: {cornerCoords.bottomRight.formattedLng}
                     </div>
                   </div>
 
                   {/* Sol Alt Köşe Krosu ve Koordinatları */}
-                  <div className="absolute bottom-[16px] left-[16px] z-20 pointer-events-none select-none flex items-end gap-1.5 -translate-x-2 translate-y-2">
-                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
-                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
-                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                  <div className="absolute bottom-[20px] left-[20px] z-20 pointer-events-none select-none">
+                    {/* + Kros İşareti (Beyaz Kabartmalı) */}
+                    <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 20 20"
+                        className="overflow-visible select-none pointer-events-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+                      >
+                        {/* Beyaz Kabartma Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#ffffff" strokeWidth="4" strokeLinecap="square" />
+                        {/* Siyah Kros Katmanı */}
+                        <line x1="1" y1="10" x2="19" y2="10" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                        <line x1="10" y1="1" x2="10" y2="19" stroke="#000000" strokeWidth="1.5" strokeLinecap="square" />
+                      </svg>
                     </div>
-                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight">
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
-                        {cornerCoords.bottomLeft.formattedLat}
-                      </div>
-                      <div className="text-slate-950 font-bold whitespace-nowrap">
-                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
-                        {cornerCoords.bottomLeft.formattedLng}
-                      </div>
+                    {/* Enlem (Yatay Eksen Üzerinde) */}
+                    <div className="absolute left-[14px] top-0 -translate-y-1/2 corner-coord-label">
+                      Enlem: {cornerCoords.bottomLeft.formattedLat}
+                    </div>
+                    {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Üstünde Dik) */}
+                    <div
+                      className="absolute corner-coord-label"
+                      style={{
+                        top: -14,
+                        left: 0,
+                        transform: 'rotate(-90deg)',
+                        transformOrigin: '0 50%',
+                      }}
+                    >
+                      Boylam: {cornerCoords.bottomLeft.formattedLng}
                     </div>
                   </div>
                 </>
