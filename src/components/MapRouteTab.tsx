@@ -1045,7 +1045,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                     </div>
                     {/* Enlem (Yatay Eksen Üzerinde) */}
                     <div className="absolute left-[14px] top-0 -translate-y-1/2 corner-coord-label">
-                      Enlem: {cornerCoords.topLeft.formattedLat}
+                      E: {cornerCoords.topLeft.formattedLat}
                     </div>
                     {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Altında Dik) */}
                     <div
@@ -1057,7 +1057,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                         transformOrigin: '0 50%',
                       }}
                     >
-                      Boylam: {cornerCoords.topLeft.formattedLng}
+                      B: {cornerCoords.topLeft.formattedLng}
                     </div>
                   </div>
 
@@ -1081,7 +1081,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                     </div>
                     {/* Enlem (Yatay Eksen Üzerinde) */}
                     <div className="absolute right-[14px] top-0 -translate-y-1/2 corner-coord-label text-right">
-                      Enlem: {cornerCoords.topRight.formattedLat}
+                      E: {cornerCoords.topRight.formattedLat}
                     </div>
                     {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Altında Dik) */}
                     <div
@@ -1093,7 +1093,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                         transformOrigin: '0 50%',
                       }}
                     >
-                      Boylam: {cornerCoords.topRight.formattedLng}
+                      B: {cornerCoords.topRight.formattedLng}
                     </div>
                   </div>
 
@@ -1117,7 +1117,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                     </div>
                     {/* Enlem (Yatay Eksen Üzerinde) */}
                     <div className="absolute right-[14px] top-0 -translate-y-1/2 corner-coord-label text-right">
-                      Enlem: {cornerCoords.bottomRight.formattedLat}
+                      E: {cornerCoords.bottomRight.formattedLat}
                     </div>
                     {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Üstünde Dik) */}
                     <div
@@ -1129,7 +1129,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                         transformOrigin: '0 50%',
                       }}
                     >
-                      Boylam: {cornerCoords.bottomRight.formattedLng}
+                      B: {cornerCoords.bottomRight.formattedLng}
                     </div>
                   </div>
 
@@ -1153,7 +1153,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                     </div>
                     {/* Enlem (Yatay Eksen Üzerinde) */}
                     <div className="absolute left-[14px] top-0 -translate-y-1/2 corner-coord-label">
-                      Enlem: {cornerCoords.bottomLeft.formattedLat}
+                      E: {cornerCoords.bottomLeft.formattedLat}
                     </div>
                     {/* Boylam (Düşey Eksen Üzerinde - + İşaretinin Üstünde Dik) */}
                     <div
@@ -1165,7 +1165,7 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                         transformOrigin: '0 50%',
                       }}
                     >
-                      Boylam: {cornerCoords.bottomLeft.formattedLng}
+                      B: {cornerCoords.bottomLeft.formattedLng}
                     </div>
                   </div>
                 </>
