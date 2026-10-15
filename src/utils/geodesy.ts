@@ -31,6 +31,22 @@ export function convertPointToWGS84(
   }
 }
 
+export function convertWGS84ToProject(
+  coords: { lat: number; lon: number },
+  system: CRSSystem,
+  domVal: number | string
+): { y: number; x: number } {
+  const targetCRS = getProj4Def(system, domVal);
+  const wgs84CRS = '+proj=longlat +datum=WGS84 +no_defs';
+  try {
+    const converted = proj4(wgs84CRS, targetCRS, [coords.lon, coords.lat]);
+    return { y: converted[0], x: converted[1] };
+  } catch (e) {
+    console.error('Proj4 reverse conversion error:', e);
+    return { y: 0, x: 0 };
+  }
+}
+
 export function performAdjustment(
   points: GNSSPoint[],
   H_start: number,

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { toPng } from 'html-to-image';
 import { GNSSPoint, CRSSystem } from '../types/gnss';
-import { convertPointToWGS84 } from '../utils/geodesy';
+import { convertPointToWGS84, convertWGS84ToProject } from '../utils/geodesy';
 import {
   Play,
   Square,
@@ -21,7 +21,22 @@ import {
   Compass,
   ZoomIn,
   ZoomOut,
+  Crosshair,
 } from 'lucide-react';
+
+interface CornerCoordItem {
+  lat: number;
+  lng: number;
+  formattedLat: string;
+  formattedLng: string;
+}
+
+interface MapCornersState {
+  topLeft: CornerCoordItem;
+  topRight: CornerCoordItem;
+  bottomLeft: CornerCoordItem;
+  bottomRight: CornerCoordItem;
+}
 
 interface MapRouteTabProps {
   points: GNSSPoint[];
@@ -45,12 +60,17 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
   const lastPointsSignatureRef = useRef<string>('');
+  const crsRef = useRef<{ system: CRSSystem; dom: string }>({ system: crsSystem, dom: crsDom });
 
   const [selectedRoute, setSelectedRoute] = useState<GNSSPoint[]>([]);
   const [isSelectionActive, setIsSelectionActive] = useState(false);
   const [mapType, setMapType] = useState<'satellite' | 'osm' | 'grid'>('satellite');
   const [scale, setScale] = useState<{ width: number; label: string }>({ width: 75, label: '100 m' });
   const [currentZoom, setCurrentZoom] = useState<number>(6);
+
+  // Harita Dış Köşelerindeki 4 Adet Kros (+) ve Proje Koordinatları (Y/X)
+  const [showCornerCoords, setShowCornerCoords] = useState<boolean>(true);
+  const [cornerCoords, setCornerCoords] = useState<MapCornersState | null>(null);
 
   // 1- Nokta Adı Büyüklüğü (Varsayılan 1 punto)
   const [pointPunto, setPointPunto] = useState<number | 'auto'>(1);
@@ -131,6 +151,51 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     }
   };
 
+  // 4 Dış Köşe Enlem / Boylam Koordinatlarını Hesaplama
+  const updateCornerCoords = () => {
+    const map = leafletMapRef.current;
+    if (!map) return;
+    try {
+      const container = map.getContainer();
+      if (!container) return;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w <= 0 || h <= 0) return;
+
+      const inset = 16;
+      const pTL = map.containerPointToLatLng(L.point(inset, inset));
+      const pTR = map.containerPointToLatLng(L.point(w - inset, inset));
+      const pBL = map.containerPointToLatLng(L.point(inset, h - inset));
+      const pBR = map.containerPointToLatLng(L.point(w - inset, h - inset));
+
+      // Enlem / Boylam eksen hizalama (Üst ve alt eksende aynı enlem, sol ve sağ eksende aynı boylam):
+      const latUst = (pTL.lat + pTR.lat) / 2;
+      const latAlt = (pBL.lat + pBR.lat) / 2;
+      const lngSol = (pTL.lng + pBL.lng) / 2;
+      const lngSag = (pTR.lng + pBR.lng) / 2;
+
+      const formattedLatUst = `${latUst.toFixed(6)}°`;
+      const formattedLatAlt = `${latAlt.toFixed(6)}°`;
+      const formattedLngSol = `${lngSol.toFixed(6)}°`;
+      const formattedLngSag = `${lngSag.toFixed(6)}°`;
+
+      setCornerCoords({
+        topLeft: { lat: latUst, lng: lngSol, formattedLat: formattedLatUst, formattedLng: formattedLngSol },
+        topRight: { lat: latUst, lng: lngSag, formattedLat: formattedLatUst, formattedLng: formattedLngSag },
+        bottomLeft: { lat: latAlt, lng: lngSol, formattedLat: formattedLatAlt, formattedLng: formattedLngSol },
+        bottomRight: { lat: latAlt, lng: lngSag, formattedLat: formattedLatAlt, formattedLng: formattedLngSag },
+      });
+    } catch {
+      // Safe fallback if map viewport is resizing
+    }
+  };
+
+  // Sync crsRef and recalculate corner coordinates when CRS changes
+  useEffect(() => {
+    crsRef.current = { system: crsSystem, dom: crsDom };
+    updateCornerCoords();
+  }, [crsSystem, crsDom]);
+
   // Leaflet map initialization
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -172,13 +237,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
       markersLayerRef.current = markersGroup;
       polylineRef.current = line;
 
-      const onZoom = () => {
+      const onMapEvent = () => {
         setCurrentZoom(map.getZoom());
         updateScale();
+        updateCornerCoords();
       };
 
-      map.on('zoom zoomend', onZoom);
-      map.on('moveend resize', updateScale);
+      map.on('zoom zoomend move moveend resize', onMapEvent);
     }
 
     const timer = setTimeout(() => {
@@ -186,12 +251,13 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         leafletMapRef.current.invalidateSize();
         setCurrentZoom(leafletMapRef.current.getZoom());
         updateScale();
+        updateCornerCoords();
       }
     }, 200);
 
     return () => {
       clearTimeout(timer);
-      leafletMapRef.current?.off('zoomend moveend resize');
+      leafletMapRef.current?.off('zoom zoomend move moveend resize');
     };
   }, []);
 
@@ -523,7 +589,10 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
     if (latLngs.length > 0 && currentSignature !== lastPointsSignatureRef.current) {
       lastPointsSignatureRef.current = currentSignature;
       leafletMapRef.current.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50] });
-      setTimeout(updateScale, 150);
+      setTimeout(() => {
+        updateScale();
+        updateCornerCoords();
+      }, 150);
     }
   }, [points, selectedRoute, crsSystem, crsDom, isSelectionActive, currentZoom, pointPunto]);
 
@@ -611,7 +680,10 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
         padding: [40, 40],
         animate: true,
       });
-      setTimeout(updateScale, 200);
+      setTimeout(() => {
+        updateScale();
+        updateCornerCoords();
+      }, 200);
       showToast('Tüm güzergah limit ekrana sığdırıldı');
     }
   };
@@ -862,6 +934,20 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             </button>
           </div>
 
+          {/* Köşe Koordinatları Butonu */}
+          <button
+            onClick={() => setShowCornerCoords((prev) => !prev)}
+            className={`px-2.5 py-1 rounded-lg border shadow-2xs transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer ${
+              showCornerCoords
+                ? 'bg-sky-50 text-sky-800 border-sky-300'
+                : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+            }`}
+            title="Harita 4 dış köşe koordinatlarını (Y/X) göster/gizle"
+          >
+            <Crosshair className="w-3.5 h-3.5 text-sky-600" />
+            <span>Köşe Koordinatları</span>
+          </button>
+
           {/* Limit Ekran Butonu */}
           <button
             onClick={handleZoomToExtents}
@@ -936,20 +1022,120 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
             <div className="flex-1 w-full relative overflow-hidden bg-slate-50 isolate">
               <div ref={mapContainerRef} className="w-full h-full relative z-0" />
 
-              {/* Geodetik Kuzey Oku ve Çizgi Ölçek (Kuzey Oku Ölçeğin Solunda - PNG Çıktısına Dahildir) */}
-              <div className="absolute bottom-2.5 left-2.5 z-20 flex items-center gap-1.5 pointer-events-none select-none">
+              {/* 4 Dış Köşe Koordinatları (Y/X) - Çerçevesiz */}
+              {showCornerCoords && cornerCoords && (
+                <>
+                  {/* Sol Üst Köşe Krosu ve Koordinatları */}
+                  <div className="absolute top-[16px] left-[16px] z-20 pointer-events-none select-none flex items-start gap-1.5 -translate-x-2 -translate-y-2">
+                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
+                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight">
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
+                        {cornerCoords.topLeft.formattedLat}
+                      </div>
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
+                        {cornerCoords.topLeft.formattedLng}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sağ Üst Köşe Krosu ve Koordinatları */}
+                  <div className="absolute top-[16px] right-[16px] z-20 pointer-events-none select-none flex items-start gap-1.5 translate-x-2 -translate-y-2">
+                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight text-right">
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
+                        {cornerCoords.topRight.formattedLat}
+                      </div>
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
+                        {cornerCoords.topRight.formattedLng}
+                      </div>
+                    </div>
+                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
+                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                    </div>
+                  </div>
+
+                  {/* Sağ Alt Köşe Krosu ve Koordinatları */}
+                  <div className="absolute bottom-[16px] right-[16px] z-20 pointer-events-none select-none flex items-end gap-1.5 translate-x-2 translate-y-2">
+                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight text-right">
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
+                        {cornerCoords.bottomRight.formattedLat}
+                      </div>
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
+                        {cornerCoords.bottomRight.formattedLng}
+                      </div>
+                    </div>
+                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
+                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                    </div>
+                  </div>
+
+                  {/* Sol Alt Köşe Krosu ve Koordinatları */}
+                  <div className="absolute bottom-[16px] left-[16px] z-20 pointer-events-none select-none flex items-end gap-1.5 -translate-x-2 translate-y-2">
+                    <div className="w-4 h-4 relative flex items-center justify-center shrink-0">
+                      <div className="absolute w-4 h-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                      <div className="absolute h-4 w-[1.5px] bg-slate-950 shadow-[0_0_2px_#ffffff]" />
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-xs px-1.5 py-0.5 font-mono text-[9px] leading-tight">
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Enlem:</span>
+                        {cornerCoords.bottomLeft.formattedLat}
+                      </div>
+                      <div className="text-slate-950 font-bold whitespace-nowrap">
+                        <span className="text-slate-600 font-semibold mr-1">Boylam:</span>
+                        {cornerCoords.bottomLeft.formattedLng}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+            </div>
+
+            {/* Pafta Lejantı & Alt Bilgi Şeridi (Harita Alt Satırı) */}
+            <div className="bg-slate-50 border-t border-slate-200 px-3.5 py-1.5 flex items-center justify-between text-[9px] text-slate-600 shrink-0 select-none relative z-10 gap-3">
+              {/* Sol: Güzergah Lejantı */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className="flex items-center gap-1 font-semibold text-slate-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
+                  <span>1. Başlangıç (A)</span>
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-slate-700">
+                  <span className="w-2 h-2 rounded-full bg-rose-600 inline-block"></span>
+                  <span>Bitiş (B)</span>
+                </span>
+                <span className="flex items-center gap-1.5 text-slate-700">
+                  <span className="w-3.5 h-0.5 bg-rose-600 inline-block"></span>
+                  <span>Güzergah Hattı</span>
+                  <span className="font-semibold text-slate-800 ml-0.5">
+                    (~{(getTotalRouteDistanceMeters() / 1000).toFixed(2)} km)
+                  </span>
+                </span>
+              </div>
+
+              {/* Sağ: Geodetik Kuzey Oku ve Çizgi Ölçek */}
+              <div className="flex items-center gap-2 shrink-0">
                 {/* Kuzey Oku */}
                 <div
-                  className="bg-white/95 backdrop-blur-xs text-slate-900 px-2 py-1 rounded border border-slate-300 shadow-sm flex items-center gap-1 font-bold text-[10px]"
+                  className="bg-white px-2 py-0.5 rounded border border-slate-300 shadow-2xs flex items-center gap-1 font-bold text-[9px] text-slate-900"
                   title="Kuzey Yönü"
                 >
-                  <span className="text-slate-950 font-black text-xs leading-none">▲</span>
+                  <span className="text-slate-950 font-black text-[11px] leading-none">▲</span>
                   <span className="tracking-wider">K</span>
                 </div>
 
                 {/* Dinamik Çizgi Ölçek */}
                 <div
-                  className="bg-white/95 backdrop-blur-xs text-slate-800 px-2 py-1 rounded border border-slate-300 shadow-sm flex flex-col items-center"
+                  className="bg-white px-2 py-0.5 rounded border border-slate-300 shadow-2xs flex flex-col items-center"
                   title="Çizgi Ölçek"
                 >
                   <div
@@ -969,27 +1155,6 @@ export const MapRouteTab: React.FC<MapRouteTabProps> = ({
                     <div className="w-1/4 h-full bg-white border-l border-slate-900" />
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Pafta Lejantı & Alt Bilgi Şeridi */}
-            <div className="bg-slate-50 border-t border-slate-200 px-3.5 py-1.5 flex items-center justify-between text-[9px] text-slate-600 shrink-0 select-none relative z-10">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1 font-semibold text-slate-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block"></span>
-                  <span>1. Başlangıç (A)</span>
-                </span>
-                <span className="flex items-center gap-1 font-semibold text-slate-700">
-                  <span className="w-2 h-2 rounded-full bg-rose-600 inline-block"></span>
-                  <span>Bitiş (B)</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-700">
-                  <span className="w-3.5 h-0.5 bg-rose-600 inline-block"></span>
-                  <span>Güzergah Hattı</span>
-                  <span className="font-semibold text-slate-800 ml-0.5">
-                    (~{(getTotalRouteDistanceMeters() / 1000).toFixed(2)} km)
-                  </span>
-                </span>
               </div>
             </div>
           </div>

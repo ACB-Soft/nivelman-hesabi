@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { SavedProject } from '../utils/projectStorage';
 import { signBackupData } from '../utils/backupIntegrity';
-import { DocsTab } from './DocsTab';
 import {
   FilePlus2,
   FolderOpen,
@@ -15,7 +14,6 @@ import {
   Download,
   X,
   ArrowRight,
-  BookOpen,
   Pencil,
   Check
 } from 'lucide-react';
@@ -38,7 +36,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onRenameProject,
 }) => {
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
-  const [isDocsOpen, setIsDocsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -157,16 +154,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
           <p className="text-sm text-slate-300 leading-relaxed">
             Koordinatı ve yüksekliği bilinen iki röper noktası arasındaki GNSS nivelman güzergahlarını oluşturun, standartlara uygun olarak dengeleyin, kapanma hatalarını hesaplayın ve raporlar oluşturun.
           </p>
-          <div className="pt-1">
-            <button
-              onClick={() => setIsDocsOpen(true)}
-              className="flex items-center gap-1.5 bg-slate-800/80 hover:bg-slate-700/90 hover:text-white px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 transition cursor-pointer"
-              title="Teknik formülleri ve dengeleme standartlarını inceleyin"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-sky-400" />
-              <span>Teknik Altyapı</span>
-            </button>
-          </div>
         </div>
 
         {/* Decorative Grid Pattern Background */}
@@ -650,35 +637,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <button
                 onClick={() => setIsLoadModalOpen(false)}
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
-              >
-                Kapat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Teknik Altyapı Modal */}
-      {isDocsOpen && (
-        <div
-          onClick={() => setIsDocsOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-5 animate-in fade-in"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
-          >
-            {/* Modal Content */}
-            <div className="p-4 sm:p-6 overflow-y-auto custom-scrollbar">
-              <DocsTab />
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsDocsOpen(false)}
-                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition cursor-pointer"
               >
                 Kapat
               </button>

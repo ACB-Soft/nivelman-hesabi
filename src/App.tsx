@@ -21,6 +21,7 @@ import {
   updateProjectNameInStorage
 } from './utils/projectStorage';
 import { signBackupData, verifyBackupIntegrity } from './utils/backupIntegrity';
+import { HelpModal } from './components/HelpModal';
 import {
   Layers,
   Table,
@@ -30,7 +31,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   ShieldAlert,
-  Home
+  Home,
+  HelpCircle
 } from 'lucide-react';
 
 export default function App() {
@@ -40,6 +42,7 @@ export default function App() {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [pendingRestoreData, setPendingRestoreData] = useState<any | null>(null);
   const [integrityWarningOpen, setIntegrityWarningOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   useEffect(() => {
     setSavedProjects(getSavedProjects());
@@ -460,8 +463,17 @@ export default function App() {
               </div>
             </div>
 
-            {/* Header Right Actions: PWA Install */}
-            <div className="flex items-center gap-2.5">
+            {/* Header Right Actions: Help & PWA Install */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(true)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl border border-slate-700/80 shadow-2xs transition cursor-pointer flex items-center justify-center"
+                title="Yardım & Hakkında"
+                aria-label="Yardım & Hakkında"
+              >
+                <HelpCircle className="w-5 h-5 text-sky-400" />
+              </button>
               <PWAInstallButton />
             </div>
           </div>
@@ -608,7 +620,7 @@ export default function App() {
       </main>
 
       {/* Fixed Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-xs text-slate-400 text-xs py-2.5 text-center border-t border-slate-800 shadow-md no-print">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xs text-slate-400 text-xs py-2.5 text-center border-t border-slate-800 shadow-md no-print">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <span>BSR Maps - Nivelman Hesabı v1.0</span>
         </div>
@@ -691,6 +703,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Yardım & Hakkında (Kılavuz & Teknik Altyapı) Modalı */}
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 }
