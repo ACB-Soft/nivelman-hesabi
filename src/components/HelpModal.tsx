@@ -278,13 +278,10 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     İletişim & Geri Bildirim
                   </span>
-                  <a
-                    href="mailto:acbmaps@gmail.com"
-                    className="text-xs font-bold text-sky-600 hover:text-sky-700 hover:underline flex items-center gap-1"
-                  >
+                  <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
                     <Mail className="w-3.5 h-3.5" />
-                    <span>bsrmaps@gmail.com</span>
-                  </a>
+                    <span>basaramaps@gmail.com</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -294,7 +291,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         {/* Modal Footer */}
         <div className="p-3.5 sm:px-6 bg-white border-t border-slate-200 flex justify-between items-center shrink-0">
           <span className="text-[11px] text-slate-400 hidden sm:inline">
-            BSR Maps
+            BASARA Maps
           </span>
           <button
             type="button"
