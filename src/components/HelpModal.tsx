@@ -291,7 +291,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ isOpen, onClose }) => {
         {/* Modal Footer */}
         <div className="p-3.5 sm:px-6 bg-white border-t border-slate-200 flex justify-between items-center shrink-0">
           <span className="text-[11px] text-slate-400 hidden sm:inline">
-            BASARA Maps
+            BSR Maps
           </span>
           <button
             type="button"

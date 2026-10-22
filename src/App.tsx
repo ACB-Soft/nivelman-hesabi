@@ -229,7 +229,7 @@ export default function App() {
         : undefined);
 
     const backupData = {
-      app: 'BASARA Maps - Nivelman Hesabı',
+      app: 'BSR Maps - Nivelman Hesabı',
       version: '1.0',
       exportedAt: new Date().toISOString(),
       id: currentProjectId || undefined,
@@ -622,7 +622,7 @@ export default function App() {
       {/* Fixed Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xs text-slate-400 text-xs py-2.5 text-center border-t border-slate-800 shadow-md no-print">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <span>BASARA Maps - Nivelman Hesabı v1.0</span>
+          <span>BSR Maps - Nivelman Hesabı v1.0</span>
         </div>
       </footer>
 

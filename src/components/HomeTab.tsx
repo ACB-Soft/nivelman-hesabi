@@ -102,7 +102,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
 
   const handleDownloadProjectJSON = (p: SavedProject) => {
     const exportPayload = {
-      app: 'BASARA Maps - Nivelman Hesabı',
+      app: 'BSR Maps - Nivelman Hesabı',
       version: '1.0',
       exportedAt: new Date().toISOString(),
       id: p.id,
